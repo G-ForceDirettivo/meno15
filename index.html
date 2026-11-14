@@ -1018,7 +1018,7 @@ function vitaCard(){
     h += '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-family:Space Grotesk,system-ui,sans-serif;font-size:28px;font-weight:700">' + fmtKg(last) + ' cm</span>' + (v.length > 1 ? '<span class="pill' + (d > 0 ? '' : ' g') + '">' + (d > 0 ? '−' + fmtKg(d) + ' cm' : 'stabile') + '</span>' : '') + '</div>';
     if (v.length > 1) h += '<span class="small mut">Dal ' + fmtDate(parseKey(v[0].d)) + ': ' + v.map(x => fmtKg(x.cm)).join(' → ') + ' cm</span>';
   }
-  h += '<div class="row"><input id="vita" type="number" inputmode="decimal" step="0.5" placeholder="Es. 108" aria-label="Giro vita in cm"><button class="btn pri sm" id="addvita" style="min-width:110px">Salva</button></div>';
+  h += '<div class="row"><input id="vita" type="text" inputmode="decimal" step="0.5" placeholder="Es. 108" aria-label="Giro vita in cm"><button class="btn pri sm" id="addvita" style="min-width:110px">Salva</button></div>';
   h += '<span class="small mut">Metro da sarta all\'altezza dell\'ombelico, in piedi, a fine espirazione, senza stringere. Spesso la pancia cala prima che la bilancia si muova.</span>';
   return h + '</div>';
 }
@@ -1112,7 +1112,7 @@ function viewProgressi(){
   const expected = Math.max(p.pesoTarget, p.pesoIniziale - pace * weeksGone);
   const diff = peso - expected;
   let h = '<div class="top"><div><small>Obiettivo ' + p.pesoTarget + ' kg · ' + fmtDate(wed) + ' ' + wed.getFullYear() + '</small><h1>Progressi</h1></div></div>';
-  h += '<div class="card stack"><span class="lab">Pesata del lunedì</span><div class="row"><input id="kg" type="number" inputmode="decimal" step="0.1" min="40" max="250" placeholder="Es. 101,4" aria-label="Peso in kg"><button class="btn pri sm" id="addkg" style="min-width:110px">Salva</button></div><span class="small mut">Al mattino, a digiuno, dopo il bagno. Una volta a settimana basta: il peso oscilla di giorno in giorno.</span></div>';
+  h += '<div class="card stack"><span class="lab">Pesata del lunedì</span><div class="row"><input id="kg" type="text" inputmode="decimal" step="0.1" min="40" max="250" placeholder="Es. 101,4" aria-label="Peso in kg"><button class="btn pri sm" id="addkg" style="min-width:110px">Salva</button></div><span class="small mut">Al mattino, a digiuno, dopo il bagno. Una volta a settimana basta: il peso oscilla di giorno in giorno.</span></div>';
   h += '<div class="card stack"><div class="between"><span class="lab">Andamento</span><span class="small mut">ritmo previsto ' + fmtKg(pace) + ' kg/settimana</span></div>' + chartSvg(start, wed, pace) + '</div>';
   let status;
   if (!S.pesi.length) status = 'Segna la prima pesata per vedere se sei in linea.';
@@ -1180,8 +1180,8 @@ function openSettings(){
   h += accountCard();
   h += '<div class="card stack">';
   h += '<label class="f">Data del matrimonio<input type="date" id="st-wed" value="' + esc(p.matrimonio) + '"></label>';
-  h += '<label class="f">Peso di partenza (kg)<input type="number" step="0.1" inputmode="decimal" id="st-start" value="' + p.pesoIniziale + '"></label>';
-  h += '<label class="f">Peso obiettivo (kg)<input type="number" step="0.1" inputmode="decimal" id="st-target" value="' + p.pesoTarget + '"></label>';
+  h += '<label class="f">Peso di partenza (kg)<input type="text" step="0.1" inputmode="decimal" id="st-start" value="' + p.pesoIniziale + '"></label>';
+  h += '<label class="f">Peso obiettivo (kg)<input type="text" step="0.1" inputmode="decimal" id="st-target" value="' + p.pesoTarget + '"></label>';
   h += '<label class="f">Data di inizio<input type="date" id="st-inizio" value="' + esc(p.inizio) + '"></label>';
   h += '<label class="f">Sera della pizza abituale<select id="st-pizza">' + GIORNI.map((g, i) => '<option value="' + i + '"' + (i === p.pizzaDay ? ' selected' : '') + '>' + g + '</option>').join('') + '</select></label>';
   h += '<div class="lab">Giorni di piscina</div><div class="seg" style="grid-template-columns:repeat(7,minmax(0,1fr))">' + GG.map((g, i) => '<button class="opt' + (p.piscina.includes(i) ? ' on' : '') + '" data-pool="' + i + '">' + g + '</button>').join('') + '</div>';
@@ -1202,7 +1202,7 @@ function viewSetup(){
   h += '<div class="card stack"><span class="small mut">Questi dati restano solo su questo telefono. Ci vuole un minuto.</span>';
   h += '<label class="f">Come ti chiami<input id="su-nome" autocomplete="given-name" value="' + esc(p.nome || '') + '"></label>';
   h += '<div class="row"><label class="f" style="flex:1">Età<input id="su-eta" type="number" inputmode="numeric" value="' + esc(p.eta || '') + '"></label><label class="f" style="flex:1">Altezza (cm)<input id="su-alt" type="number" inputmode="numeric" value="' + esc(p.altezza || '') + '"></label></div>';
-  h += '<div class="row"><label class="f" style="flex:1">Peso di oggi (kg)<input id="su-peso" type="number" step="0.1" inputmode="decimal" value="' + esc(p.pesoIniziale || '') + '"></label><label class="f" style="flex:1">Peso obiettivo (kg)<input id="su-target" type="number" step="0.1" inputmode="decimal" value="' + esc(p.pesoTarget || '') + '"></label></div>';
+  h += '<div class="row"><label class="f" style="flex:1">Peso di oggi (kg)<input id="su-peso" type="text" step="0.1" inputmode="decimal" value="' + esc(p.pesoIniziale || '') + '"></label><label class="f" style="flex:1">Peso obiettivo (kg)<input id="su-target" type="text" step="0.1" inputmode="decimal" value="' + esc(p.pesoTarget || '') + '"></label></div>';
   h += '<label class="f">Entro quando (es. il matrimonio)<input id="su-data" type="date" value="' + esc(p.matrimonio || '') + '"></label>';
   h += '<div class="lab">Giorni di piscina</div><div class="seg" style="grid-template-columns:repeat(7,minmax(0,1fr))">' + GG.map((g, i) => '<button class="opt' + (p.piscina.includes(i) ? ' on' : '') + '" data-pool="' + i + '">' + g + '</button>').join('') + '</div>';
   h += '<label class="f">Sera della pizza<select id="su-pizza">' + GIORNI.map((g, i) => '<option value="' + i + '"' + (i === p.pizzaDay ? ' selected' : '') + '>' + g + '</option>').join('') + '</select></label>';
