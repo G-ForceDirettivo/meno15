@@ -24,7 +24,7 @@
 html,body{touch-action:manipulation;margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;-webkit-text-size-adjust:100%}
 body{min-height:100vh}
 button{font:inherit;color:inherit;touch-action:manipulation}
-*{-webkit-tap-highlight-color:transparent}
+*{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 h1,h2,h3{font-family:'Space Grotesk',Inter,sans-serif;margin:0}
 .app{max-width:480px;margin:0 auto;min-height:100vh;padding:calc(18px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom)) 16px;display:flex;flex-direction:column;gap:14px}
 .top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
@@ -135,6 +135,20 @@ a{color:var(--green)}
 <script>
 (function(){
 'use strict';
+
+/* ---------------- Niente zoom (doppio tocco e pizzico) ---------------- */
+(function(){
+  let last = 0;
+  document.addEventListener('touchend', function(e){
+    const now = Date.now();
+    const t = e.target;
+    const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
+    if (!typing && now - last < 350) e.preventDefault();
+    last = now;
+  }, { passive: false });
+  ['gesturestart','gesturechange','gestureend'].forEach(function(ev){ document.addEventListener(ev, function(e){ e.preventDefault(); }, { passive: false }); });
+  document.addEventListener('dblclick', function(e){ e.preventDefault(); }, { passive: false });
+})();
 
 /* ---------------- Utility ---------------- */
 const $ = (s) => document.querySelector(s);
@@ -1141,7 +1155,12 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#laye
 render();
 initCloud();
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
-if ('serviceWorker' in navigator && location.protocol === 'https:') { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); }); }
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (reloaded) return; reloaded = true; location.reload(); });
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { r.update().catch(() => {}); }).catch(() => {}); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); });
+}
 })();
 </script>
 </body>
