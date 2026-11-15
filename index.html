@@ -638,7 +638,7 @@ function mealCards(date){
     if (chips || gf || av) h += '<span class="chips">' + av + chips + gf + '</span>';
     h += '</button>';
     extraLines(date, s).forEach(l => { h += '<span class="small" style="color:var(--blue-d)">' + esc(l) + '</span>'; });
-    h += '<div class="mc-foot"><button class="linkbtn" data-swap="' + s + '" data-date="' + k + '">' + ICON.swap + ' Cambia piatto</button><span class="small mut">' + (r.min ? r.min + ' min' : '') + '</span></div>';
+    h += '<div class="mc-foot"><button class="linkbtn" data-swap="' + s + '" data-date="' + k + '">' + ICON.swap + ' Cambia piatto</button><button class="linkbtn" data-pianob="' + s + '" data-date="' + k + '" style="color:#8A3A0E">Piano B</button><span class="small mut">' + (r.min ? r.min + ' min' : '') + '</span></div>';
     h += '</div>';
   });
   return h + '</div>';
@@ -1080,6 +1080,38 @@ function openCasaRisultato(days){
 }
 
 /* ---------------- Stasera mi manca qualcosa ---------------- */
+/* ---------------- Piano B: niente in casa ---------------- */
+const PIANOB = {
+  pasto: [
+    { k:'super', l:'Supermercato', si:['Insalatona pronta con tonno, pollo, uova o legumi: usa metà del condimento della bustina','Pollo arrosto o petto già cotto (un palmo, senza pelle) + verdure grigliate in vaschetta + 1 panino integrale piccolo','Zuppa o vellutata di legumi fresca (banco frigo) + un frutto','Tonno al naturale in scatoletta + gallette o cracker integrali (1 pacchetto) + pomodorini'], no:['Insalate di pasta o di riso con maionese','Piatti pronti con panna o formaggi fusi','Fritti e panati del banco gastronomia'] },
+    { k:'bar', l:'Bar', si:['Un panino o tramezzino con bresaola, prosciutto crudo magro, tacchino o tonno e verdure','Insalatona del bar, condimento a parte','Acqua naturale o una spremuta'], no:['Focacce farcite, pizzette, rustici','Toast con doppio formaggio','Il secondo panino o la brioche a fine pasto'] },
+    { k:'distr', l:'Distributore', si:['Cracker integrali o gallette + una bustina piccola di frutta secca non salata','Uno yogurt bianco o un frutto, se c\'è il frigo','Acqua naturale','Il pasto vero recuperalo a cena con la porzione normale, non doppia'], no:['Merendine, barrette al cioccolato, patatine','Bibite zuccherate (sì Coca Zero, dentro il limite)','Due snack al posto di uno'] },
+    { k:'mensa', l:'Mensa / tavola calda', si:['Un primo semplice (pomodoro, verdure) OPPURE un secondo alla piastra','Contorno di verdure grande','Pane: un pezzo solo, o niente se prendi il primo'], no:['Primo + secondo + dolce','Fritti, lasagne, sughi con panna','Il bis'] },
+    { k:'rost', l:'Rosticceria', si:['Pollo allo spiedo, un quarto senza pelle','Verdure grigliate o insalata','Un pezzo di pane'], no:['Supplì, crocchette, arancini','Patate fritte o al forno unte','Lasagne e timballi'] },
+    { k:'fast', l:'Fast food', si:['Hamburger semplice (senza bacon e formaggio doppio) oppure insalata con pollo grigliato','Acqua o Coca Zero','Se hai fame, un frutto o una seconda insalata'], no:['Patatine e anelli di cipolla','Salse (maionese, barbecue)','Menu "maxi" e dolci'] },
+    { k:'forno', l:'Forno / pizzeria al taglio', si:['Un pezzo di pizza rossa o margherita grande come una mano + un frutto o un\'insalata','Oppure un panino integrale fatto al banco con prosciutto cotto o crudo magro'], no:['Pizza con wurstel, patatine, salsiccia','Più di un pezzo','Focaccia unta e dolci da forno'] }
+  ],
+  piccolo: [
+    { k:'bar', l:'Bar', si:['Una spremuta o un frutto','Caffè o cappuccino senza zucchero (conta nei caffè del giorno)','Se è l\'ora della colazione: cornetto semplice vuoto o integrale, uno solo'], no:['Cornetti farciti, ciambelle, krapfen','Succhi di frutta confezionati'] },
+    { k:'super', l:'Supermercato', si:['Un frutto','Uno yogurt bianco o greco','2 gallette o un pacchetto di cracker integrali'], no:['Merendine e biscotti','Yogurt alla frutta o "da bere" zuccherati'] },
+    { k:'distr', l:'Distributore', si:['Una bustina piccola di frutta secca non salata','Cracker integrali','Acqua naturale'], no:['Merendine, barrette, patatine','Bibite zuccherate'] }
+  ]
+};
+let pbPlace = null;
+function openPianoB(slot, dateKey){
+  const tipo = ['pra','cen'].includes(slot) ? 'pasto' : 'piccolo', list = PIANOB[tipo];
+  if (!pbPlace || !list.find(x => x.k === pbPlace)) pbPlace = list[0].k;
+  const P = list.find(x => x.k === pbPlace);
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Piano B · ' + esc(SLOTNAME[slot] || '') + '</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<span class="small mut">Non hai niente da preparare? Dove sei o dove puoi comprare?</span>';
+  h += '<div class="chips">' + list.map(x => '<button class="opt' + (x.k === pbPlace ? ' on' : '') + '" data-pbplace="' + x.k + '" data-slot="' + slot + '" data-date="' + dateKey + '" style="min-height:40px;border-radius:999px;padding:6px 12px">' + esc(x.l) + '</button>').join('') + '</div>';
+  h += '<div class="card stack"><span class="lab">Prendi</span><ul class="clean">' + P.si.map(t => '<li><span style="color:var(--green)">' + ICON.check + '</span><span>' + esc(t) + '</span></li>').join('') + '</ul></div>';
+  h += '<div class="card stack"><span class="lab">Evita</span><ul class="clean">' + P.no.map(t => '<li><span style="color:var(--orange);font-weight:700;width:18px;text-align:center">–</span><span>' + esc(t) + '</span></li>').join('') + '</ul></div>';
+  h += '<div class="tip">' + ICON.info + '<span>Il Piano B resta dentro il dimagrimento: una porzione, niente doppioni. Il pasto dopo è normale, senza recuperi né digiuni.</span></div>';
+  h += '<button class="btn pri" data-pbdone="' + slot + '" data-date="' + dateKey + '">Fatto: segna come mangiato</button>';
+  if (slot === 'pra') h += '<button class="btn sec2" data-noingr="' + dateKey + '">Vedi i pranzi che posso preparare con quello che ho</button>';
+  sheet(h);
+}
 function openNoIngr(dateKey){
   const has = casaCount() > 0, cur = mealsFor(parseKey(dateKey)).pra;
   const list = byType('pra').map(id => ({ id, m: has ? missingOf(id) : null })).sort((a, b) => has ? (a.m.length - b.m.length || R[a.id].min - R[b.id].min) : (R[a.id].min - R[b.id].min));
@@ -1092,9 +1124,7 @@ function openNoIngr(dateKey){
     if (has) h += x.m.length ? '<span class="small" style="color:#8A3A0E">Manca: ' + esc(x.m.join(', ')) + '</span>' : '<span class="small" style="color:var(--green-d)">✓ Hai tutto</span>';
     h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-recipe="' + x.id + '">Ricetta</button><button class="opt' + (x.id === cur ? ' on gr' : '') + '" data-pickpra="' + x.id + '" data-date="' + dateKey + '">' + (x.id === cur ? 'Già scelto' : 'Scelgo questo') + '</button></div></div>';
   });
-  h += '<div class="card stack"><span class="lab">Non hai proprio niente?</span><ul class="clean">';
-  ['Domattina al supermercato: insalatona pronta con tonno, pollo o legumi (condimento a parte, metà bustina) e un frutto.','Al bar: panino con bresaola, prosciutto crudo magro o tacchino e verdure. Niente focacce, pizzette o fritti.','Avanzi della cena di stasera: cucinane una porzione in più e portala.'].forEach(t => { h += '<li><span style="color:var(--green)">' + ICON.check + '</span><span>' + esc(t) + '</span></li>'; });
-  h += '</ul></div>';
+  h += '<div class="card stack"><span class="lab">Non hai proprio niente?</span><span style="font-size:14px;line-height:1.5">Avanzi della cena di stasera (cucinane una porzione in più e portala), oppure il Piano B: cosa comprare al lavoro, al bar, al supermercato o al distributore.</span><button class="btn hot" data-pianob="pra" data-date="' + dateKey + '">Apri il Piano B</button></div>';
   sheet(h);
 }
 function casaCount(){ return Object.keys(S.casa || {}).length; }
@@ -1775,6 +1805,9 @@ document.addEventListener('click', async (e) => {
     clearPlans(); save(); closeSheet(); render(); toast('Non lo vedrai più nel menu'); return;
   }
   if (d.unescl) { delete S.escl[d.unescl]; clearPlans(); save(); t.remove(); render(); toast('Rimesso nel menu'); return; }
+  if (d.pianob) { openPianoB(d.pianob, d.date || keyOf(new Date())); return; }
+  if (d.pbplace) { pbPlace = d.pbplace; openPianoB(d.slot, d.date); return; }
+  if (d.pbdone) { S.fatti[d.date + ':' + d.pbdone] = true; save(); closeSheet(); render(); toast('Segnato. Pasto B fatto bene!'); return; }
   if (d.rview) { recipeView = d.rview; const sc = $('.sheet') ? $('.sheet').scrollTop : 0; openRecipe(d.id, d.date || null, d.slot || null); if ($('.sheet')) $('.sheet').scrollTop = sc; return; }
   if (d.sost) { askSost(d.sost); return; }
   if (d.guida !== undefined) { openGuida(); return; }
