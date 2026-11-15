@@ -1452,6 +1452,19 @@ function openReport(){
   sheet(h);
 }
 
+function paceNeeded(fromWeight, fromDate, target, goalDate){
+  const weeks = (goalDate - fromDate) / (7 * 864e5);
+  if (weeks <= 0) return Infinity;
+  return Math.max(0, fromWeight - target) / weeks;
+}
+function paceMsg(pace){
+  if (!isFinite(pace)) return { cls:'o', txt:'La data obiettivo è già passata: impostane una nuova in Impostazioni.' };
+  if (pace > 1.05) return { cls:'o', txt:'Ritmo troppo veloce: ' + fmtKg(pace) + ' kg a settimana non è sicuro (massimo consigliato circa 1 kg). Sposta in avanti la data obiettivo o abbassa l\'obiettivo di peso.' };
+  if (pace > 0.75) return { cls:'o', txt:'Ritmo impegnativo: ' + fmtKg(pace) + ' kg a settimana. Si può fare, ma servono piano seguito alla lettera, niente jolly e più movimento. Valuta di spostare un po\' la data.' };
+  if (pace < 0.25) return { cls:'', txt:'Ritmo molto tranquillo: ' + fmtKg(pace) + ' kg a settimana. Ottimo per non riprenderli.' };
+  return { cls:'', txt:'Ritmo sostenibile: ' + fmtKg(pace) + ' kg a settimana.' };
+}
+
 function viewProgressi(){
   const p = S.profilo, start = parseKey(p.inizio), wed = parseKey(p.matrimonio), today = new Date();
   const peso = lastWeight(), tot = p.pesoIniziale - p.pesoTarget;
@@ -1463,6 +1476,11 @@ function viewProgressi(){
   let h = '<div class="top"><div><small>Obiettivo ' + p.pesoTarget + ' kg · ' + fmtDate(wed) + ' ' + wed.getFullYear() + '</small><h1>Progressi</h1></div></div>';
   h += '<div class="card stack"><span class="lab">Pesata del lunedì</span><div class="row"><input id="kg" type="text" inputmode="decimal" step="0.1" min="40" max="250" placeholder="Es. 101,4" aria-label="Peso in kg"><button class="btn pri sm" id="addkg" style="min-width:110px">Salva</button></div><span class="small mut">Al mattino, a digiuno, dopo il bagno. Una volta a settimana basta: il peso oscilla di giorno in giorno.</span></div>';
   h += '<div class="card stack"><div class="between"><span class="lab">Andamento</span><span class="small mut">ritmo previsto ' + fmtKg(pace) + ' kg/settimana</span></div>' + chartSvg(start, wed, pace) + '</div>';
+  if (S.fase !== 'mantenimento' && peso > p.pesoTarget) {
+    const need = paceNeeded(peso, today < start ? start : today, p.pesoTarget, wed), pm = paceMsg(need);
+    const daysLeft = Math.max(0, Math.ceil((wed - today) / 864e5));
+    h += '<div class="tip' + (pm.cls ? ' o' : '') + '">' + ICON.info + '<span><b>Da oggi:</b> mancano ' + fmtKg(peso - p.pesoTarget) + ' kg in ' + daysLeft + ' giorni. ' + esc(pm.txt) + '</span></div>';
+  }
   let status;
   if (!S.pesi.length) status = 'Segna la prima pesata per vedere se sei in linea.';
   else if (diff <= 0.5) status = 'Sei in linea con il piano (previsto oggi ' + fmtKg(expected) + ' kg). Continua così.';
@@ -1471,7 +1489,8 @@ function viewProgressi(){
   h += '<div class="tip">' + ICON.info + '<span>' + esc(status) + '</span></div>';
   // tappe
   h += '<div class="card stack"><span class="lab">Le tappe</span>';
-  [5, 10, 15].forEach(kg => {
+  const totKg = p.pesoIniziale - p.pesoTarget, stepKg = totKg <= 6 ? [totKg] : totKg <= 12 ? [Math.round(totKg / 2), totKg] : [Math.round(totKg / 3), Math.round(totKg * 2 / 3), totKg];
+  stepKg.forEach(kg => {
     const when = addDays(start, Math.round(kg / pace * 7));
     const ok = (p.pesoIniziale - peso) >= kg;
     h += '<div class="between" style="min-height:36px"><span style="font-weight:600">' + (ok ? '<span style="color:var(--green)">' + ICON.check + '</span> ' : '') + '−' + kg + ' kg · ' + (p.pesoIniziale - kg) + ' kg</span><span class="small mut">' + (ok ? 'fatto!' : 'circa ' + MESI[when.getMonth()] + ' ' + when.getFullYear()) + '</span></div>';
@@ -1523,12 +1542,21 @@ function chartSvg(start, wed, pace){
   all.forEach(q => { s += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="4" fill="#2F7D5B" stroke="#fff" stroke-width="1.5"/>'; });
   return s + '</svg>';
 }
+function updatePacePreview(){
+  const el = $('#st-pace'); if (!el) return;
+  const wed = ($('#st-wed') || {}).value, tg = parseFloat(String(($('#st-target') || {}).value || '').replace(',', '.'));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(wed || '') || !(tg > 40)) { el.innerHTML = ''; return; }
+  const pm = paceMsg(paceNeeded(lastWeight(), new Date(), tg, parseKey(wed)));
+  el.className = 'tip' + (pm.cls ? ' o' : '');
+  el.innerHTML = ICON.info + '<span>' + esc(pm.txt) + '</span>';
+}
 function openSettings(){
   const p = S.profilo;
   let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Impostazioni</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
   h += accountCard();
   h += '<div class="card stack">';
   h += '<label class="f">Data obiettivo<input type="date" id="st-wed" value="' + esc(p.matrimonio) + '"></label>';
+  h += '<div class="tip" id="st-pace" style="margin-top:-2px"></div>';
   h += '<label class="f">Peso di partenza (kg)<input type="text" step="0.1" inputmode="decimal" id="st-start" value="' + p.pesoIniziale + '"></label>';
   h += '<label class="f">Peso obiettivo (kg)<input type="text" step="0.1" inputmode="decimal" id="st-target" value="' + p.pesoTarget + '"></label>';
   h += '<label class="f">Data di inizio<input type="date" id="st-inizio" value="' + esc(p.inizio) + '"></label>';
@@ -1541,6 +1569,7 @@ function openSettings(){
   h += '<button class="btn pri" id="st-save">Salva</button></div>';
   h += '<div class="card stack"><span class="lab">I tuoi dati</span><span class="small mut">' + (cloud === 'cloud' ? 'Salvati nel tuo account: li ritrovi su ogni dispositivo dove apri questa app.' : 'Salvati solo su questo telefono, dentro l\'app.') + '</span><button class="btn sec2" id="st-copy">Copia un backup dei dati</button><span class="small mut">Copialo ogni tanto e incollalo in una nota: se cambi telefono lo ripristini da qui sotto.</span><textarea id="st-backup" placeholder="Incolla qui un backup"></textarea><button class="btn sec2" id="st-restore">Ripristina il backup</button></div>';
   sheet(h);
+  updatePacePreview();
 }
 
 /* ---------------- Primo avvio ---------------- */
@@ -1710,6 +1739,7 @@ document.addEventListener('click', async (e) => {
   if (t.id === 'st-save') {
     const p = S.profilo;
     const wed = $('#st-wed').value, ini = $('#st-inizio').value;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(wed) && parseKey(wed) <= new Date()) { toast('La data obiettivo deve essere nel futuro'); return; }
     const st = parseFloat(String($('#st-start').value).replace(',', '.')), tg = parseFloat(String($('#st-target').value).replace(',', '.'));
     if (/^\d{4}-\d{2}-\d{2}$/.test(wed)) p.matrimonio = wed;
     if (/^\d{4}-\d{2}-\d{2}$/.test(ini)) p.inizio = ini;
@@ -1719,7 +1749,9 @@ document.addEventListener('click', async (e) => {
     p.compagnaCeliaca = $('#st-gf').checked;
     p.cenePerDue = $('#st-due').checked;
     Object.keys(planCache).forEach(k => delete planCache[k]);
-    save(); closeSheet(); render(); toast('Impostazioni salvate'); return;
+    save(); closeSheet(); render();
+    { const pm = paceMsg(paceNeeded(lastWeight(), new Date(), p.pesoTarget, parseKey(p.matrimonio))); toast(pm.cls ? 'Salvato. Attenzione: ' + pm.txt.split(':')[0].toLowerCase() : 'Salvato: menu, tappe e grafico aggiornati'); }
+    return;
   }
   if (t.id === 'su-save') {
     const p = S.profilo, num = (id) => parseFloat(String($(id).value).replace(',', '.'));
@@ -1744,7 +1776,9 @@ document.addEventListener('click', async (e) => {
   }
   if (t.id === 'st-copy') { try { await navigator.clipboard.writeText(JSON.stringify(S)); toast('Backup copiato'); } catch (err) { toast('Copia non riuscita su questo dispositivo'); } return; }
 });
+document.addEventListener('input', (e) => { if (e.target && (e.target.id === 'st-wed' || e.target.id === 'st-target')) updatePacePreview(); });
 document.addEventListener('change', async (e) => {
+  if (e.target && (e.target.id === 'st-wed' || e.target.id === 'st-target')) updatePacePreview();
   if (e.target && e.target.id === 'fridgephoto' && e.target.files && e.target.files[0]) { fridgePhoto(e.target.files[0]); return; }
   if (e.target && e.target.id === 'menuphoto' && e.target.files && e.target.files[0]) {
     const f = e.target.files[0];
