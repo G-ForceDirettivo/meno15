@@ -348,7 +348,7 @@ function accountCard(){
   if (sbUser) {
     h += '<span style="font-size:14px">Collegato come <b>' + esc(sbUser.email || '') + '</b>. I dati si salvano da soli e li ritrovi su ogni telefono o computer dove accedi.</span>';
     h += '<span class="small mut">' + (sbErr ? esc(sbErr) : sbLast ? 'Ultimo salvataggio: ' + pad(new Date(sbLast).getHours()) + ':' + pad(new Date(sbLast).getMinutes()) : 'In attesa del primo salvataggio') + '</span>';
-    h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-sbnow>Salva adesso</button><button class="opt" data-sbout>Esci</button></div>';
+    h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-sbnow>Sincronizza ora</button><button class="opt" data-sbout>Esci</button></div>';
   } else {
     h += '<span class="small mut">Crea un account (o accedi) per salvare i dati online: non li perdi se cambi telefono e il coach si attiva.</span>';
     h += '<input id="sb-mail" type="email" autocomplete="email" placeholder="La tua email" aria-label="Email">';
@@ -744,6 +744,9 @@ function openPanciaTips(){
   T.forEach(([t, d]) => { h += '<div class="card stack"><b style="font-size:15px">' + esc(t) + '</b><span style="font-size:14px;line-height:1.5">' + esc(d) + '</span></div>'; });
   sheet(h);
 }
+function mdLite(t){
+  return esc(String(t || '')).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[\*\-]\s+/gm, '• ').replace(/(^|\s)\*(?!\s)([^*\n]+?)\*(?=\s|$|[.,;:!?])/g, '$1<i>$2</i>');
+}
 function lowFirst(t){ return /^[A-Z][a-zà-ù]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t; }
 function shortName(n){ return n.replace(/ \(.*\)/, '').replace(' extravergine', '').replace(' bianco', ''); }
 
@@ -939,7 +942,7 @@ function sostCard(id){
   h += '<label class="f">Al posto di<select id="sost-orig">' + r.i.map(x => '<option' + (cur.orig === x[0] ? ' selected' : '') + '>' + esc(x[0]) + '</option>').join('') + '</select></label>';
   h += '<label class="f">vorrei usare<input id="sost-nuovo" placeholder="Es. tacchino, fagioli, farro…" value="' + esc(cur.nuovo || '') + '"></label>';
   h += '<button class="btn sec2" data-sost="' + id + '"' + (cur.busy ? ' disabled' : '') + '>' + (cur.busy ? 'Ci penso…' : 'Va bene lo stesso?') + '</button>';
-  if (cur.txt && !cur.busy) h += '<div class="tip' + (cur.ok ? '' : ' o') + '">' + (cur.ok ? ICON.check : ICON.info) + '<span style="white-space:pre-line">' + esc(cur.txt) + '</span></div>';
+  if (cur.txt && !cur.busy) h += '<div class="tip' + (cur.ok ? '' : ' o') + '">' + (cur.ok ? ICON.check : ICON.info) + '<span style="white-space:pre-line">' + mdLite(cur.txt) + '</span></div>';
   return h + '</div>';
 }
 
@@ -1359,7 +1362,7 @@ function viewFuori(){
   if (menuPhotoUrl) h += '<div class="row" style="align-items:flex-start"><img src="' + menuPhotoUrl + '" alt="Foto del menu" style="width:96px;height:96px;object-fit:cover;border-radius:12px"><div class="stack" style="gap:6px"><span class="small mut">Foto pronta. Aggiungi pure due righe qui sotto (es. "ho molta fame", "è la mia sera pizza").</span><button class="btn sec2 sm" data-rmphoto>Togli foto</button></div></div>';
   h += '<label class="f" for="aiq">' + (menuPhoto ? 'Note (facoltative)' : 'Oppure scrivi dove siete o cosa c\'è sul menu') + '</label><textarea id="aiq" placeholder="Es: siamo in una trattoria romana, sul menu ci sono cacio e pepe, saltimbocca, carciofi alla giudia, abbacchio…"></textarea>';
   h += '<button class="btn pri" id="aibtn"' + (aiBusy ? ' disabled' : '') + '>' + (aiBusy ? 'Sto pensando…' : 'Cosa prendo?') + '</button>';
-  h += '<div class="ai-out" id="aiout">' + esc(aiText) + '</div></div>';
+  h += '<div class="ai-out" id="aiout">' + mdLite(aiText) + '</div></div>';
   return h;
 }
 async function askCoach(){
@@ -1582,6 +1585,26 @@ function chartSvg(start, wed, pace){
   all.forEach(q => { s += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="4" fill="#2F7D5B" stroke="#fff" stroke-width="1.5"/>'; });
   return s + '</svg>';
 }
+function applySettings(loud){
+  if (!$('#st-wed')) return false;
+  const p = S.profilo;
+  const wed = $('#st-wed').value, ini = $('#st-inizio').value;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(wed) && parseKey(wed) <= new Date()) { if (loud) toast('La data obiettivo deve essere nel futuro'); return false; }
+  const st = parseFloat(String($('#st-start').value).replace(',', '.')), tg = parseFloat(String($('#st-target').value).replace(',', '.'));
+  if (/^\d{4}-\d{2}-\d{2}$/.test(wed)) p.matrimonio = wed;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(ini)) p.inizio = ini;
+  if (st > 40 && st < 250) p.pesoIniziale = st;
+  if (tg > 40 && tg < p.pesoIniziale) p.pesoTarget = tg;
+  p.pizzaDay = Number($('#st-pizza').value);
+  p.compagnaCeliaca = $('#st-gf').checked;
+  if ($('#st-due')) p.cenePerDue = $('#st-due').checked;
+  if ($('#st-spu')) p.spuntino = $('#st-spu').checked;
+  if ($('#st-ora') && toMin($('#st-ora').value) != null) p.oraAll = $('#st-ora').value;
+  if ($('#st-dur')) { const du = parseInt($('#st-dur').value, 10); if (du >= 15 && du <= 240) p.durAll = du; }
+  Object.keys(planCache).forEach(k => delete planCache[k]);
+  save();
+  return true;
+}
 function updatePacePreview(){
   const el = $('#st-pace'); if (!el) return;
   const wed = ($('#st-wed') || {}).value, tg = parseFloat(String(($('#st-target') || {}).value || '').replace(',', '.'));
@@ -1608,7 +1631,7 @@ function openSettings(){
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-spu" style="width:22px;height:22px"' + (p.spuntino !== false ? ' checked' : '') + '> Spuntino di metà mattina</label>';
   const ex = Object.keys(S.escl || {}).filter(k => R[k]);
   h += '<div class="lab">Piatti esclusi</div>' + (ex.length ? '<div class="chips">' + ex.map(k => '<button class="opt" data-unescl="' + k + '" style="min-height:38px;border-radius:999px;padding:6px 12px;font-weight:500">' + esc(R[k].n) + ' ✕</button>').join('') + '</div><span class="small mut">Tocca un piatto per rimetterlo nel menu.</span>' : '<span class="small mut">Nessuno. Li escludi dalla scheda di una ricetta con "Non mi piace".</span>');
-  h += '<button class="btn pri" id="st-save">Salva</button></div>';
+  h += '<button class="btn pri" id="st-save">Salva</button><span class="small mut" id="st-saved" style="text-align:center">Le modifiche si salvano da sole</span></div>';
   h += '<div class="card stack"><span class="lab">I tuoi dati</span><span class="small mut">' + (cloud === 'cloud' ? 'Salvati nel tuo account: li ritrovi su ogni dispositivo dove apri questa app.' : 'Salvati solo su questo telefono, dentro l\'app.') + '</span><button class="btn sec2" id="st-copy">Copia un backup dei dati</button><span class="small mut">Copialo ogni tanto e incollalo in una nota: se cambi telefono lo ripristini da qui sotto.</span><textarea id="st-backup" placeholder="Incolla qui un backup"></textarea><button class="btn sec2" id="st-restore">Ripristina il backup</button></div>';
   sheet(h);
   updatePacePreview();
@@ -1703,7 +1726,7 @@ document.addEventListener('click', async (e) => {
     if (needsSetup()) render(); else { render(); openSettings(); }
     return;
   }
-  if (d.sbnow !== undefined) { await sbPush(); openSettings(); toast(sbErr || 'Salvato online'); return; }
+  if (d.sbnow !== undefined) { applySettings(false); await sbPush(); const sc = $('.sheet') ? $('.sheet').scrollTop : 0; openSettings(); if ($('.sheet')) $('.sheet').scrollTop = sc; toast(sbErr || 'Sincronizzato online'); return; }
   if (d.sbout !== undefined) { try { await sb.auth.signOut(); } catch (err) {} sbUser = null; openSettings(); render(); toast('Uscito: i dati restano sul telefono'); return; }
   if (d.fav) { const id = d.fav; if (S.pref[id]) delete S.pref[id]; else { S.pref[id] = true; delete S.escl[id]; } clearPlans(); save(); render(); openRecipe(id, d.date || null, d.slot || null); toast(S.pref[id] ? 'Aggiunto ai preferiti' : 'Tolto dai preferiti'); return; }
   if (d.escl) {
@@ -1779,23 +1802,9 @@ document.addEventListener('click', async (e) => {
   if (d.settings !== undefined) { openSettings(); return; }
   if (d.pool) { const i = Number(d.pool); const a = S.profilo.piscina; S.profilo.piscina = a.includes(i) ? a.filter(x => x !== i) : a.concat([i]).sort(); t.classList.toggle('on'); save(); Object.keys(planCache).forEach(k => delete planCache[k]); return; }
   if (t.id === 'st-save') {
-    const p = S.profilo;
-    const wed = $('#st-wed').value, ini = $('#st-inizio').value;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(wed) && parseKey(wed) <= new Date()) { toast('La data obiettivo deve essere nel futuro'); return; }
-    const st = parseFloat(String($('#st-start').value).replace(',', '.')), tg = parseFloat(String($('#st-target').value).replace(',', '.'));
-    if (/^\d{4}-\d{2}-\d{2}$/.test(wed)) p.matrimonio = wed;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(ini)) p.inizio = ini;
-    if (st > 40 && st < 250) p.pesoIniziale = st;
-    if (tg > 40 && tg < st) p.pesoTarget = tg;
-    p.pizzaDay = Number($('#st-pizza').value);
-    p.compagnaCeliaca = $('#st-gf').checked;
-    p.cenePerDue = $('#st-due').checked;
-    p.spuntino = $('#st-spu').checked;
-    if (toMin($('#st-ora').value) != null) p.oraAll = $('#st-ora').value;
-    { const du = parseInt($('#st-dur').value, 10); if (du >= 15 && du <= 240) p.durAll = du; }
-    Object.keys(planCache).forEach(k => delete planCache[k]);
-    save(); closeSheet(); render();
-    { const pm = paceMsg(paceNeeded(lastWeight(), new Date(), p.pesoTarget, parseKey(p.matrimonio))); toast(pm.cls ? 'Salvato. Attenzione: ' + pm.txt.split(':')[0].toLowerCase() : 'Salvato: menu, tappe e grafico aggiornati'); }
+    if (applySettings(true) === false) return;
+    closeSheet(); render();
+    { const p = S.profilo, pm = paceMsg(paceNeeded(lastWeight(), new Date(), p.pesoTarget, parseKey(p.matrimonio))); toast(pm.cls ? 'Salvato. Attenzione: ' + pm.txt.split(':')[0].toLowerCase() : 'Salvato: menu, tappe e grafico aggiornati'); }
     return;
   }
   if (t.id === 'su-save') {
@@ -1824,6 +1833,7 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('input', (e) => { if (e.target && (e.target.id === 'st-wed' || e.target.id === 'st-target')) updatePacePreview(); });
 document.addEventListener('change', async (e) => {
   if (e.target && (e.target.id === 'st-wed' || e.target.id === 'st-target')) updatePacePreview();
+  if (e.target && /^st-(wed|inizio|start|target|pizza|gf|due|spu|ora|dur)$/.test(e.target.id || '')) { if (applySettings(false) !== false) { render(); const el = $('#st-saved'); if (el) { el.textContent = 'Salvato automaticamente'; } } }
   if (e.target && e.target.id === 'fridgephoto' && e.target.files && e.target.files[0]) { fridgePhoto(e.target.files[0]); return; }
   if (e.target && e.target.id === 'menuphoto' && e.target.files && e.target.files[0]) {
     const f = e.target.files[0];
