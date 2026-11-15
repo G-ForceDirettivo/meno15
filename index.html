@@ -268,7 +268,7 @@ function clearPlans(){ Object.keys(planCache).forEach(k => delete planCache[k]);
 /* ---------------- Stato ---------------- */
 const DEFAULT = {
   v:1,
-  profilo:{ nome:'', eta:null, altezza:null, pesoIniziale:null, pesoTarget:null, matrimonio:'', inizio:'', piscina:[], pizzaDay:5, cenePerDue:true, spuntino:true, compagnaCeliaca:false, colesterolo:null },
+  profilo:{ nome:'', eta:null, altezza:null, pesoIniziale:null, pesoTarget:null, matrimonio:'', inizio:'', piscina:[], pizzaDay:5, cenePerDue:true, spuntino:true, oraAll:'19:45', durAll:50, compagnaCeliaca:false, colesterolo:null },
   fase:'dimagrimento', manteniDal:null,
   pesi:[],            // {d:'YYYY-MM-DD', kg}
   fame:[],            // {t, kind, level, ctx:[], ate:'' }
@@ -515,12 +515,15 @@ const TURNI = {
   riposo:{ l:'Riposo', col:'8:30', spu:'11:00', pra:'13:00', mer:'17:00', cen:'20:00', ser:'22:00', porta:[] }
 };
 function turnoOf(date){ const k = keyOf(date); return S.turni[k] || (dow(date) === 6 ? 'riposo' : 'mattina'); }
+function hm(min){ min = ((min % 1440) + 1440) % 1440; return Math.floor(min / 60) + ':' + pad(min % 60); }
+function toMin(t){ const m = String(t || '').match(/^(\d{1,2}):(\d{2})$/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+function allenamento(){ const p = S.profilo, st = toMin(p.oraAll) != null ? toMin(p.oraAll) : 19 * 60 + 45, du = Number(p.durAll) || 50; return { start: st, end: st + du, pre: st - 75, cena: st + du + 25, ora: hm(st), fine: hm(st + du) }; }
 function slotInfo(date, slot){
-  const tu = TURNI[turnoOf(date)], pool = S.profilo.piscina.includes(dow(date));
+  const tu = TURNI[turnoOf(date)], pool = S.profilo.piscina.includes(dow(date)), A = allenamento();
   let time = tu[slot], note = '';
   if (tu.porta.includes(slot)) note = 'da portare al lavoro';
-  if (pool && slot === 'mer') { time = '18:30'; note = 'prima della piscina'; }
-  if (pool && slot === 'cen') { time = '21:00'; note = 'dopo la piscina'; }
+  if (pool && slot === 'mer') { time = hm(A.pre); note = 'prima dell\'allenamento'; }
+  if (pool && slot === 'cen') { time = hm(Math.max(A.cena, toMin(tu.cen) || 0)); note = 'dopo l\'allenamento'; }
   if (slot === 'ser') note = turnoOf(date) === 'notte' ? 'spuntino in turno, da portare' : 'facoltativo';
   return { time, note };
 }
@@ -542,7 +545,7 @@ function extraLines(date, slot){
   const lines = [];
   if (slot === 'spu') lines.push('Spuntino leggero (50-80 kcal): è già dentro il piano. Se a metà mattina non hai fame, saltalo e non recuperarlo dopo.');
   const pool = S.profilo.piscina.includes(dow(date));
-  if (pool && slot === 'cen' && !['dpz','ffe','fle'].includes(mealsFor(date).cen)) lines.push('Giorno di piscina: +1 fetta di pane o +2 cucchiai di riso/pasta.');
+  if (pool && slot === 'cen' && !['dpz','ffe','fle'].includes(mealsFor(date).cen)) lines.push('Giorno di allenamento: +1 fetta di pane o +2 cucchiai di riso/pasta.');
   const st = mantenimentoStep();
   if (st != null) {
     if (slot === 'pra' && st >= 0) lines.push('Mantenimento: +2 cucchiai di riso/pasta o +1 fetta di pane.');
@@ -594,7 +597,7 @@ function viewOggi(){
   const wed = parseKey(p.matrimonio), start = parseKey(p.inizio || keyOf(today));
   const daysLeft = Math.max(0, Math.ceil((wed - today) / 864e5)), totDays = Math.max(1, Math.round((wed - start) / 864e5));
   const tags = [];
-  if (pool) tags.push('<span class="pill b">Piscina 19:45</span>');
+  if (pool) tags.push('<span class="pill b">Allenamento ' + allenamento().ora + '</span>');
   if (pz) tags.push('<span class="pill o">Serata pizza</span>');
   if (S.feste[k]) tags.push('<span class="pill o">Giorno di festa</span>');
   if (!tags.length) tags.push('<span class="pill">' + TURNI[turnoOf(today)].l + '</span>');
@@ -611,6 +614,7 @@ function viewOggi(){
   h += '<div class="sec"><h2>Cosa mangi oggi</h2><span class="small mut">tocca per la ricetta</span></div>';
   h += mealCards(today);
   if (i === 6 || i === 0) h += '<button class="card meal" data-riep="' + (i === 0 ? -1 : 0) + '" style="border-color:#E0A43A"><span class="lab">' + (i === 0 ? 'La settimana appena finita' : 'Fine settimana') + '</span><span class="dish">Guarda il tuo riepilogo</span><span class="small mut">Peso, pasti, acqua, raptus e un consiglio per la prossima settimana</span></button>';
+  if (pool) h += trainingCard(today);
   h += drinkCard(k);
   h += panciaCard(k);
   const tom = addDays(today, 1), mt = mealsFor(tom);
@@ -645,8 +649,24 @@ function gasLimit(){
   const w = Math.floor((new Date() - parseKey(S.profilo.inizio || keyOf(new Date()))) / (7 * 864e5));
   return w < 1 ? 3 : w < 2 ? 2 : 1;
 }
+function trainingCard(date){
+  const A = allenamento(), m = mealsFor(date);
+  let h = '<div class="card stack" style="border-color:#9CC3E4"><div class="between"><span class="lab">Allenamento di oggi</span><span class="pill b">' + A.ora + '–' + A.fine + '</span></div>';
+  h += '<span style="font-size:14px;line-height:1.5"><b>Né di più né di meno: cambia solo l\'orario.</b> Il piano conta già l\'allenamento: la merenda diventa lo spuntino pre-allenamento e la cena è un po\' più ricca.</span>';
+  h += '<ul class="clean">';
+  [['Prima (' + hm(A.pre) + ')', R[m.mer] ? R[m.mer].n + ': carboidrati semplici e leggeri, 60-90 minuti prima. Niente pasti abbondanti nelle 2 ore prima, né allenarti a digiuno da 5 ore.' : ''],
+   ['Acqua', 'Un bicchiere prima e una bottiglietta da portare: in acqua si suda senza accorgersene.'],
+   ['Caffè', 'Non prenderlo prima dell\'allenamento serale: ti toglierebbe sonno. L\'ultimo entro le ' + lastCoffee(date) + '.'],
+   ['Dopo (' + hm(A.cena) + ')', 'Cena entro un\'ora: un palmo di proteine e i carboidrati (in più +1 fetta di pane o +2 cucchiai di riso/pasta, è già scritto nella cena).'],
+   ['Niente premi', 'L\'allenamento non "autorizza" dolci o birra in più: è già dentro il piano. Se salti l\'allenamento, salta anche l\'aggiunta a cena.']
+  ].forEach(([t, d]) => { if (d) h += '<li><span style="color:var(--blue-d);font-weight:700;min-width:84px">' + esc(t) + '</span><span>' + esc(d) + '</span></li>'; });
+  h += '</ul></div>';
+  return h;
+}
+const BED = { mattina:'23:00', pomeriggio:'23:30', sera:'1:00', notte:'7:30', riposo:'23:30' };
+function lastCoffee(date){ const b = toMin(BED[turnoOf(date)]); return hm(b - 6 * 60); }
 function drinkCard(k){
-  const b = S.bevande[k] || { acqua:0, gas:0 }, lim = gasLimit();
+  const b = Object.assign({ acqua:0, gas:0, caffe:0 }, S.bevande[k] || {}), lim = gasLimit();
   let h = '<div class="card stack"><div class="between"><span class="lab">Cosa bevi oggi</span><button class="linkbtn" data-panciatips>Perché conta</button></div>';
   h += '<div class="drink"><div><b>Acqua naturale</b><div class="small mut">bicchieri · obiettivo 8</div><div class="dots">';
   for (let n = 0; n < 8; n++) h += '<i class="' + (n < b.acqua ? 'on' : '') + '"></i>';
@@ -654,6 +674,13 @@ function drinkCard(k){
   h += '<div class="drink" style="border-top:1px solid var(--line)"><div><b>Coca Zero e bibite gassate</b><div class="small mut">lattine · questa settimana massimo ' + lim + '</div><div class="dots">';
   for (let n = 0; n < Math.max(lim, b.gas); n++) h += '<i class="' + (n < b.gas ? (n < lim ? 'on' : 'over') : '') + '"></i>';
   h += '</div></div><div class="stepper"><button data-drink="gas" data-delta="-1" aria-label="Una lattina in meno">−</button><b>' + b.gas + '</b><button data-drink="gas" data-delta="1" aria-label="Una lattina in più">+</button></div></div>';
+  const mg = b.caffe * 80 + b.gas * 33;
+  h += '<div class="drink" style="border-top:1px solid var(--line)"><div><b>Caffè</b><div class="small mut">tazzine · fino a 3 · ultimo entro le ' + lastCoffee(parseKey(k)) + '</div><div class="dots">';
+  for (let n = 0; n < Math.max(4, b.caffe); n++) h += '<i class="' + (n < b.caffe ? (n < 3 ? 'on' : 'over') : '') + '"></i>';
+  h += '</div></div><div class="stepper"><button data-drink="caffe" data-delta="-1" aria-label="Un caffè in meno">−</button><b>' + b.caffe + '</b><button data-drink="caffe" data-delta="1" aria-label="Un caffè in più">+</button></div></div>';
+  h += '<span class="small mut">Caffeina di oggi: circa ' + mg + ' mg su 400 (caffè circa 80 mg, una lattina di cola circa 33). Senza zucchero.</span>';
+  if (mg > 400) h += '<div class="tip o">' + ICON.info + '<span>Oltre la soglia di sicurezza di 400 mg al giorno: passa al decaffeinato o all\'acqua per il resto della giornata.</span></div>';
+  else if (b.caffe > 3) h += '<div class="tip o">' + ICON.info + '<span>Con il colesterolo alto meglio non superare 3 caffè (espresso o moka contengono un po\' di sostanze che lo alzano). Il quarto fallo decaffeinato.</span></div>';
   if (b.gas > lim) h += '<div class="tip o">' + ICON.info + '<span>Oltre il limite di oggi. Prova acqua fredda con limone o un tè freddo fatto in casa senza zucchero: hanno il "fresco" della Coca senza bollicine.</span></div>';
   return h + '</div>';
 }
@@ -1574,7 +1601,8 @@ function openSettings(){
   h += '<label class="f">Peso obiettivo (kg)<input type="text" step="0.1" inputmode="decimal" id="st-target" value="' + p.pesoTarget + '"></label>';
   h += '<label class="f">Data di inizio<input type="date" id="st-inizio" value="' + esc(p.inizio) + '"></label>';
   h += '<label class="f">Sera della pizza abituale<select id="st-pizza">' + GIORNI.map((g, i) => '<option value="' + i + '"' + (i === p.pizzaDay ? ' selected' : '') + '>' + g + '</option>').join('') + '</select></label>';
-  h += '<div class="lab">Giorni di piscina</div><div class="seg" style="grid-template-columns:repeat(7,minmax(0,1fr))">' + GG.map((g, i) => '<button class="opt' + (p.piscina.includes(i) ? ' on' : '') + '" data-pool="' + i + '">' + g + '</button>').join('') + '</div>';
+  h += '<div class="lab">Allenamento</div><div class="row"><label class="f" style="flex:1">Ora di inizio<input id="st-ora" type="time" value="' + esc(p.oraAll || '19:45') + '"></label><label class="f" style="flex:1">Durata (minuti)<input id="st-dur" type="text" inputmode="numeric" value="' + esc(p.durAll || 50) + '"></label></div>';
+  h += '<div class="lab">Giorni di allenamento (piscina)</div><div class="seg" style="grid-template-columns:repeat(7,minmax(0,1fr))">' + GG.map((g, i) => '<button class="opt' + (p.piscina.includes(i) ? ' on' : '') + '" data-pool="' + i + '">' + g + '</button>').join('') + '</div>';
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-gf" style="width:22px;height:22px"' + (p.compagnaCeliaca ? ' checked' : '') + '> Mostra le indicazioni senza glutine per la mia compagna</label>';
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-due" style="width:22px;height:22px"' + (p.cenePerDue !== false ? ' checked' : '') + '> La cena la cucino per due (lista della spesa)</label>';
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-spu" style="width:22px;height:22px"' + (p.spuntino !== false ? ' checked' : '') + '> Spuntino di metà mattina</label>';
@@ -1706,7 +1734,7 @@ document.addEventListener('click', async (e) => {
   if (d.copyreport !== undefined) { const tmp = document.createElement('div'); tmp.innerHTML = reportHtml(); const txt = (tmp.innerText || tmp.textContent || '').trim(); try { await navigator.clipboard.writeText(txt); toast('Riepilogo copiato'); } catch (err) { toast('Copia non riuscita su questo dispositivo'); } return; }
   if (t.id === 'addvita') { const v = parseFloat(String($('#vita').value).replace(',', '.')); if (!(v > 50 && v < 200)) { toast('Scrivi il giro vita in cm, es. 108'); return; } const k = keyOf(new Date()); S.vita = (S.vita || []).filter(x => x.d !== k).concat([{ d: k, cm: v }]).sort((a, b) => a.d < b.d ? -1 : 1); save(); render(); toast('Giro vita salvato'); return; }
   if (d.drink) {
-    const k = keyOf(new Date()), b = S.bevande[k] || { acqua:0, gas:0 };
+    const k = keyOf(new Date()), b = Object.assign({ acqua:0, gas:0, caffe:0 }, S.bevande[k] || {});
     b[d.drink] = Math.max(0, Math.min(30, (b[d.drink] || 0) + Number(d.delta)));
     S.bevande[k] = b; save(); render(); return;
   }
@@ -1763,6 +1791,8 @@ document.addEventListener('click', async (e) => {
     p.compagnaCeliaca = $('#st-gf').checked;
     p.cenePerDue = $('#st-due').checked;
     p.spuntino = $('#st-spu').checked;
+    if (toMin($('#st-ora').value) != null) p.oraAll = $('#st-ora').value;
+    { const du = parseInt($('#st-dur').value, 10); if (du >= 15 && du <= 240) p.durAll = du; }
     Object.keys(planCache).forEach(k => delete planCache[k]);
     save(); closeSheet(); render();
     { const pm = paceMsg(paceNeeded(lastWeight(), new Date(), p.pesoTarget, parseKey(p.matrimonio))); toast(pm.cls ? 'Salvato. Attenzione: ' + pm.txt.split(':')[0].toLowerCase() : 'Salvato: menu, tappe e grafico aggiornati'); }
