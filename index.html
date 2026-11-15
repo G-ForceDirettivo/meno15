@@ -602,7 +602,7 @@ function viewOggi(){
   h += drinkCard(k);
   h += panciaCard(k);
   const tom = addDays(today, 1), mt = mealsFor(tom);
-  h += '<div class="card stack" style="border:1.5px dashed #C9D3CD;box-shadow:none;background:transparent"><span class="lab">Stasera prepara</span><button class="meal" style="background:none;padding:0" data-recipe="' + mt.pra + '" data-date="' + keyOf(tom) + '" data-slot="pra"><span class="dish">' + esc(R[mt.pra].n) + '</span><span class="small mut">Pranzo di ' + GIORNI[dow(tom)].toLowerCase() + (R[mt.pra].min ? ' · ' + R[mt.pra].min + ' minuti' : '') + '</span></button></div>';
+  h += '<div class="card stack" style="border:1.5px dashed #C9D3CD;box-shadow:none;background:transparent"><span class="lab">Stasera prepara</span><button class="meal" style="background:none;padding:0" data-recipe="' + mt.pra + '" data-date="' + keyOf(tom) + '" data-slot="pra"><span class="dish">' + esc(R[mt.pra].n) + '</span><span class="small mut">Pranzo di ' + GIORNI[dow(tom)].toLowerCase() + (R[mt.pra].min ? ' · ' + R[mt.pra].min + ' minuti' : '') + '</span>' + (availChip(mt.pra) ? '<span class="chips">' + availChip(mt.pra) + '</span>' : '') + '</button><button class="btn sec2 sm" data-noingr="' + keyOf(tom) + '">Non ho gli ingredienti</button></div>';
   h += festaSeg(k);
   h += '<button class="btn hot" data-go="fame">' + ICON.flame + ' Ho fame adesso</button>';
   return h;
@@ -618,7 +618,8 @@ function mealCards(date){
     h += '<div class="mc-head"><span class="slotico" style="background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><div class="mc-when"><b>' + SLOTNAME[s] + ' · ' + info.time + '</b><span class="small mut">' + esc(info.note || '') + '</span></div>';
     h += '<button class="checkbtn' + (done ? ' on' : '') + '" data-done="' + s + '" data-date="' + k + '" aria-label="' + (done ? 'Mangiato, tocca per annullare' : 'Segna come mangiato') + '" aria-pressed="' + (done ? 'true' : 'false') + '">' + ICON.check + '</button></div>';
     h += '<button class="meal" style="background:none;padding:0" data-recipe="' + id + '" data-date="' + k + '" data-slot="' + s + '"><span class="dish">' + esc(r.n) + '</span>';
-    if (chips || gf) h += '<span class="chips">' + chips + gf + '</span>';
+    const av = availChip(id);
+    if (chips || gf || av) h += '<span class="chips">' + av + chips + gf + '</span>';
     h += '</button>';
     extraLines(date, s).forEach(l => { h += '<span class="small" style="color:var(--blue-d)">' + esc(l) + '</span>'; });
     h += '<div class="mc-foot"><button class="linkbtn" data-swap="' + s + '" data-date="' + k + '">' + ICON.swap + ' Cambia piatto</button><span class="small mut">' + (r.min ? r.min + ' min' : '') + '</span></div>';
@@ -719,6 +720,7 @@ function openRecipe(id, dateKey, slot){
   }
   if (slot) extraLines(date, slot).forEach(l => { h += '<div class="tip">' + ICON.info + '<span>' + esc(l) + '</span></div>'; });
   h += '<div class="card"><div class="lab" style="margin-bottom:6px">Come si fa</div><ol class="steps">' + r.p.map(x => '<li>' + esc(x) + '</li>').join('') + '</ol></div>';
+  if (casaCount() && r.i.length) { const miss = missingOf(id); h += miss.length ? '<div class="tip o">' + ICON.info + '<span><b>Da comprare:</b> ' + esc(miss.join(', ')) + '. Il resto ce l\'hai.</span></div>' : '<div class="tip">' + ICON.check + '<span><b>Hai tutto</b> per questa ricetta.</span></div>'; }
   if (r.tip) h += '<div class="tip">' + ICON.check + '<span>' + esc(r.tip) + '</span></div>';
   if (r.cat === 'legumi') h += '<div class="tip">' + ICON.info + '<span>Per non gonfiarti: sciacqua bene i legumi sotto l\'acqua e mangia con calma. Se ti gonfiano, all\'inizio fanne mezza porzione.</span></div>';
   if (id === 'dpz') h += '<div class="tip o">' + ICON.info + '<span>Pizza e birra gonfiano per sale e bollicine: domani la pancia sarà un po\' più tesa. È acqua, passa in un giorno o due.</span></div>';
@@ -813,8 +815,128 @@ function recipeCanon(id){
 function haveScore(id){
   const ings = recipeCanon(id);
   if (!ings.length) return 0;
-  const have = ings.filter(n => S.casa[n]).length;
-  return have ? have + have / ings.length : 0;
+  const have = ings.filter(n => S.casa[n]).length, miss = ings.length - have;
+  return have ? (miss === 0 ? 100 : 0) + have * 3 - miss : 0;
+}
+function missingOf(id){ return recipeCanon(id).filter(n => !S.casa[n] && !['Limone','Aglio e prezzemolo','Tisane'].includes(n)); }
+function availChip(id){
+  if (!casaCount() || !R[id] || !R[id].i.length) return '';
+  const m = missingOf(id);
+  return m.length ? '<span class="chip c">Manca: ' + esc(m.slice(0, 3).join(', ')) + (m.length > 3 ? '…' : '') + '</span>' : '<span class="chip v">✓ Hai tutto</span>';
+}
+
+/* ---------------- Guida ai prodotti ---------------- */
+const GUIDA = {
+  'Petto di pollo':['petto o fesa al naturale, da banco o in vaschetta','pollo impanato, cordon bleu, preparati già conditi'],
+  'Tacchino':['fesa al naturale a fette o straccetti','wurstel e arrosti pronti con aromi e sale'],
+  'Manzo magro':['girello, fesa, controfiletto sgrassato; macinato con "magro" in etichetta','salsiccia, hamburger pronti con grassi aggiunti'],
+  'Salmone':['filetto fresco o surgelato al naturale','salmone affumicato come base (molto sale), panati'],
+  'Merluzzo o pesce bianco':['filetti surgelati con solo pesce negli ingredienti','bastoncini, panati, "gratinati"'],
+  'Orata o branzino':['fresco, occhio vivo e branchie rosse; oppure surgelato','pesce già condito in vaschetta'],
+  'Gamberetti':['surgelati al naturale: guarda il peso netto sgocciolato','gamberi in salsa o già conditi'],
+  'Bresaola':['bresaola classica, al banco o in vaschetta','più di 1-2 volte a settimana (sale)'],
+  'Prosciutto cotto':['"alta qualità", senza polifosfati, pochi ingredienti','spalla cotta e cotto con fecola o polifosfati'],
+  'Tonno in scatola':['al naturale, o all\'olio d\'oliva sgocciolato bene','tonno con salse e insalate di tonno pronte'],
+  'Ceci':['in vetro, ingredienti: solo ceci, acqua, sale','legumi già conditi o in salsa'],
+  'Lenticchie':['in vetro o secche (le decorticate cuociono in 15 minuti)','zuppe pronte con molto sale'],
+  'Fagioli':['in vetro, solo fagioli, acqua, sale','fagioli in salsa o "alla messicana" pronti'],
+  'Uova':['categoria A, allevamento all\'aperto o a terra','uova liquide pronte'],
+  'Yogurt':['greco bianco 0-2%, senza zuccheri aggiunti','yogurt alla frutta, "bianco dolce", cremosi'],
+  'Latte o kefir':['latte parzialmente scremato, kefir bianco naturale','latte aromatizzato, kefir alla frutta zuccherato'],
+  'Ricotta':['ricotta vaccina (più magra)','ricotta di pecora tutti i giorni (più grassa)'],
+  'Mozzarella':['fiordilatte, anche "light"','burrata e stracciatella (molto più grasse)'],
+  'Feta':['Feta DOP, in piccole porzioni','formaggi tipo feta con olio vegetale'],
+  'Grana':['Grana Padano o Parmigiano Reggiano DOP in pezzo','grattugiati "misti" o preparati a base di formaggio'],
+  'Hummus':['con ceci al primo posto e olio d\'oliva','hummus con olio di semi e zuccheri aggiunti'],
+  'Pasta':['integrale o di semola di grano duro','pasta ripiena e all\'uovo per tutti i giorni'],
+  'Spaghetti':['integrali o di semola di grano duro','spaghetti all\'uovo per tutti i giorni'],
+  'Riso':['basmati, parboiled o carnaroli','riso pronto in busta già condito'],
+  'Farro':['farro perlato o precotto (si cuoce in 15 minuti)','insalate di cereali pronte e condite'],
+  'Orzo':['orzo perlato o precotto','insalate di orzo pronte e condite'],
+  'Cous cous':['integrale, se lo trovi','cous cous già condito'],
+  'Fiocchi d\'avena':['fiocchi d\'avena 100%, senza altro','muesli e granola con zuccheri, cioccolato, miele'],
+  'Gallette':['di riso o mais: solo cereale e sale','gallette ricoperte di cioccolato o yogurt'],
+  'Pane':['integrale vero: farina integrale come primo ingrediente','pane "ai cereali" di farina 0 scurito col malto, pancarré con zuccheri e oli'],
+  'Piadina':['integrale, con olio d\'oliva','piadina con strutto'],
+  'Fette biscottate':['integrali, con pochi ingredienti','fette dolci o con zuccheri tra i primi ingredienti'],
+  'Cracker':['integrali, con olio d\'oliva','cracker con sale in superficie e olio di palma'],
+  'Patate':['patate fresche','patatine fritte surgelate, purè in fiocchi'],
+  'Spinaci':['surgelati a cubetti, solo spinaci','spinaci "alla crema"'],
+  'Fagiolini':['freschi o surgelati al naturale','contorni surgelati già conditi'],
+  'Piselli':['surgelati al naturale','piselli in scatola con zucchero aggiunto'],
+  'Insalata':['cespo o busta già lavata','insalate pronte con condimenti e crostini'],
+  'Passata di pomodoro':['solo pomodoro (e sale)','sughi pronti'],
+  'Minestrone surgelato':['solo verdure e legumi','minestroni con pasta o olio già aggiunti'],
+  'Verdure grigliate surgelate':['senza olio aggiunto','verdure sott\'olio'],
+  'Mais':['mais al naturale in scatola, sgocciolato','mais con zuccheri aggiunti'],
+  'Frutta di stagione':['frutta fresca di stagione, intera','succhi di frutta e frutta sciroppata'],
+  'Arance':['arance intere o spremuta fresca','succhi con zuccheri aggiunti'],
+  'Olio extravergine':['extravergine d\'oliva','olio di semi per condire, "olio di oliva" non extravergine'],
+  'Olive':['in salamoia, poche','olive condite in olio'],
+  'Frutta secca':['mandorle e noci al naturale, non salate','frutta secca salata, mix da aperitivo'],
+  'Miele o marmellata':['marmellata "extra" o composta con più frutta','creme spalmabili'],
+  'Cioccolato fondente':['fondente almeno 70%','al latte, bianco o ripieno'],
+  'Brodo o dado':['dado con la spiga barrata e basso contenuto di sale','più di mezzo dado per volta (molto salato)'],
+  'Spezie (curry, cannella, paprika)':['spezie pure','mix di spezie con sale aggiunto']
+};
+['Zucchine','Peperoni','Carote','Finocchi','Cetrioli','Rucola','Pomodori o pomodorini','Cipolla','Zucca'].forEach(k => { GUIDA[k] = ['fresche di stagione, oppure surgelate al naturale','verdure surgelate "per padella" già condite con olio e sale']; });
+['Banana','Mela','Kiwi'].forEach(k => { GUIDA[k] = ['frutta fresca, intera','frutta essiccata zuccherata o sciroppata']; });
+function guidaFor(name){ const c = canonOf(name); for (const k of c) if (GUIDA[k]) return GUIDA[k]; return null; }
+function openGuida(){
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Come scegliere i prodotti</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<div class="card stack"><span class="lab">Leggere l\'etichetta in 30 secondi</span><ul class="clean">';
+  ['Gli ingredienti sono in ordine di quantità: il primo è quello che c\'è di più.','"Integrale" vero: farina integrale al primo posto, non farina 0 con crusca o malto.','Zuccheri: guarda la tabella nutrizionale; per yogurt e cereali da colazione, meno di 5 g per 100 g.','Sale: nei piatti pronti oltre 1,5 g per 100 g è tanto.','Meno ingredienti ci sono, meglio è.'].forEach(t => { h += '<li><span style="color:var(--green)">' + ICON.check + '</span><span>' + esc(t) + '</span></li>'; });
+  h += '</ul></div>';
+  Object.keys(REP).forEach(rk => {
+    const ks = Object.keys(GUIDA).filter(k => catalogo()[k] === rk).sort();
+    if (!ks.length) return;
+    h += '<div class="card stack"><span class="lab">' + REP[rk] + '</span>';
+    ks.forEach(k => { h += '<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b style="font-size:14px">' + esc(k) + '</b><div class="small" style="color:var(--green-d)">Scegli: ' + esc(GUIDA[k][0]) + '</div><div class="small" style="color:#8A3A0E">Evita: ' + esc(GUIDA[k][1]) + '</div></div>'; });
+    h += '</div>';
+  });
+  sheet(h);
+}
+
+/* ---------------- Dopo il menu: cosa comprare e idee ---------------- */
+function openCasaRisultato(days){
+  const slots = ['pra','cen'], buy = {}, ids = [];
+  let full = 0, tot = 0;
+  days.forEach(d => { const m = mealsFor(d); slots.forEach(sl => { const id = m[sl]; if (!R[id] || !R[id].i.length) return; tot++; ids.push(id); const miss = missingOf(id); if (!miss.length) full++; miss.forEach(x => { buy[x] = (buy[x] || 0) + 1; }); }); });
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Il tuo menu è pronto</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<div class="card stack" style="text-align:center"><div style="font-family:Space Grotesk,system-ui,sans-serif;font-size:30px;font-weight:700;color:var(--green)">' + full + ' su ' + tot + '</div><span class="small mut">pranzi e cene che puoi già fare con quello che hai</span></div>';
+  const bk = Object.keys(buy).sort((a, b) => buy[b] - buy[a]);
+  if (bk.length) {
+    h += '<div class="card stack"><span class="lab">Da comprare per completare il menu</span>';
+    bk.forEach(k => { const g = GUIDA[k]; h += '<div style="padding:6px 0;border-bottom:1px solid var(--line)"><div class="between"><b style="font-size:14px">' + esc(k) + '</b><span class="small mut">' + buy[k] + (buy[k] === 1 ? ' piatto' : ' piatti') + '</span></div>' + (g ? '<div class="small" style="color:var(--green-d)">Scegli: ' + esc(g[0]) + '</div>' : '') + '</div>'; });
+    h += '</div>';
+  }
+  const idee = byType('pra').concat(byType('cen')).filter(id => !ids.includes(id)).map(id => ({ id, m: missingOf(id), have: recipeCanon(id).length - missingOf(id).length })).filter(x => x.have >= 2 && x.m.length >= 1 && x.m.length <= 2).sort((a, b) => a.m.length - b.m.length || b.have - a.have).slice(0, 5);
+  if (idee.length) {
+    h += '<div class="card stack"><span class="lab">Con 1-2 cose in più puoi fare anche</span>';
+    idee.forEach(x => { h += '<button class="meal" data-recipe="' + x.id + '" style="background:none;padding:6px 0;border-bottom:1px solid var(--line)"><span style="font-weight:600;font-size:14px">' + esc(R[x.id].n) + '</span><span class="small" style="color:#8A3A0E">Compra: ' + esc(x.m.join(', ')) + '</span></button>'; });
+    h += '<span class="small mut">Per metterne uno nel menu: aprilo dal giorno che vuoi con "Cambia piatto".</span></div>';
+  }
+  h += '<button class="btn pri" data-spesa="' + keyOf(mondayOf(days[0])) + '">Lista della spesa con i consigli</button>';
+  sheet(h);
+}
+
+/* ---------------- Stasera mi manca qualcosa ---------------- */
+function openNoIngr(dateKey){
+  const has = casaCount() > 0, cur = mealsFor(parseKey(dateKey)).pra;
+  const list = byType('pra').map(id => ({ id, m: has ? missingOf(id) : null })).sort((a, b) => has ? (a.m.length - b.m.length || R[a.id].min - R[b.id].min) : (R[a.id].min - R[b.id].min));
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Pranzo di domani</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  if (!has) h += '<div class="tip o">' + ICON.info + '<span>Segna prima cosa hai in casa (in Settimana › Cosa ho in casa): così ti metto in cima i pranzi che puoi fare subito. Intanto ecco i più veloci.</span></div><button class="btn sec2" data-casaopen>Segna cosa ho in casa</button>';
+  else h += '<span class="small mut">In cima quelli che puoi fare con quello che hai. Tocca "Scelgo questo" e diventa il pranzo di domani.</span>';
+  list.slice(0, 8).forEach(x => {
+    const ok = has && !x.m.length;
+    h += '<div class="card stack" style="' + (ok ? 'border-color:var(--green)' : '') + '"><div class="between"><b style="font-size:15px">' + esc(R[x.id].n) + '</b><span class="small mut">' + R[x.id].min + ' min</span></div>';
+    if (has) h += x.m.length ? '<span class="small" style="color:#8A3A0E">Manca: ' + esc(x.m.join(', ')) + '</span>' : '<span class="small" style="color:var(--green-d)">✓ Hai tutto</span>';
+    h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-recipe="' + x.id + '">Ricetta</button><button class="opt' + (x.id === cur ? ' on gr' : '') + '" data-pickpra="' + x.id + '" data-date="' + dateKey + '">' + (x.id === cur ? 'Già scelto' : 'Scelgo questo') + '</button></div></div>';
+  });
+  h += '<div class="card stack"><span class="lab">Non hai proprio niente?</span><ul class="clean">';
+  ['Domattina al supermercato: insalatona pronta con tonno, pollo o legumi (condimento a parte, metà bustina) e un frutto.','Al bar: panino con bresaola, prosciutto crudo magro o tacchino e verdure. Niente focacce, pizzette o fritti.','Avanzi della cena di stasera: cucinane una porzione in più e portala.'].forEach(t => { h += '<li><span style="color:var(--green)">' + ICON.check + '</span><span>' + esc(t) + '</span></li>'; });
+  h += '</ul></div>';
+  sheet(h);
 }
 function casaCount(){ return Object.keys(S.casa || {}).length; }
 function planFromCasa(days){
@@ -939,9 +1061,10 @@ function openSpesa(mk){
     const names = Object.keys(items).filter(n => items[n].rep === rk).sort();
     if (!names.length) return;
     h += '<div class="card"' + (rk === 'sg' ? ' style="border-color:#E0A43A"' : '') + '><div class="lab" style="margin-bottom:4px">' + REP2[rk] + '</div>';
-    names.forEach(n => { const on = !!done[n], c = items[n].count; h += '<label class="shop-item' + (on ? ' done' : '') + '"><input type="checkbox" data-shop="' + esc(n) + '" data-mk="' + mk + '"' + (on ? ' checked' : '') + '><span>' + esc(n) + '</span><span class="small mut" style="margin-left:auto">' + (c ? c + (c === 1 ? ' porzione' : ' porzioni') : 'controlla') + '</span></label>'; });
+    names.forEach(n => { const on = !!done[n], c = items[n].count, g = rk !== 'casa' ? guidaFor(n) : null; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="align-items:flex-start;padding:8px 0"><input type="checkbox" data-shop="' + esc(n) + '" data-mk="' + mk + '"' + (on ? ' checked' : '') + ' style="margin-top:2px"><span style="flex:1;min-width:0">' + esc(n) + (g ? '<span class="small" style="display:block;color:var(--green-d);text-decoration:none">Scegli: ' + esc(g[0]) + '</span>' : '') + '</span><span class="small mut" style="white-space:nowrap">' + (c ? c + (c === 1 ? ' porz.' : ' porz.') : 'controlla') + '</span></label>'; });
     h += '</div>';
   });
+  h += '<button class="btn sec2" data-guida>Come scegliere i prodotti (cosa evitare)</button>';
   h += '<button class="btn sec2" data-copyspesa="' + mk + '">Copia la lista (da incollare su WhatsApp)</button>';
   sheet(h);
 }
@@ -1401,7 +1524,7 @@ document.addEventListener('click', async (e) => {
   if (d.copyspesa) {
     const { monday, items } = buildSpesa(d.copyspesa), done = S.spesa[d.copyspesa] || {};
     let txt = 'Spesa settimana dal ' + fmtDate(monday) + '\n';
-    Object.keys(REP2).filter(rk => rk !== 'casa').forEach(rk => { const ns = Object.keys(items).filter(n => items[n].rep === rk && !done[n]).sort(); if (ns.length) txt += '\n' + REP2[rk] + ':\n' + ns.map(n => '- ' + n + (items[n].count > 1 ? ' (' + items[n].count + ')' : '')).join('\n') + '\n'; });
+    Object.keys(REP2).filter(rk => rk !== 'casa').forEach(rk => { const ns = Object.keys(items).filter(n => items[n].rep === rk && !done[n]).sort(); if (ns.length) txt += '\n' + REP2[rk] + ':\n' + ns.map(n => { const g = guidaFor(n); return '- ' + n + (items[n].count > 1 ? ' (' + items[n].count + ')' : '') + (g ? ' → ' + g[0] : ''); }).join('\n') + '\n'; });
     try { await navigator.clipboard.writeText(txt); toast('Lista copiata'); } catch (err) { toast('Copia non riuscita su questo dispositivo'); }
     return;
   }
@@ -1441,6 +1564,9 @@ document.addEventListener('click', async (e) => {
     clearPlans(); save(); closeSheet(); render(); toast('Non lo vedrai più nel menu'); return;
   }
   if (d.unescl) { delete S.escl[d.unescl]; clearPlans(); save(); t.remove(); render(); toast('Rimesso nel menu'); return; }
+  if (d.guida !== undefined) { openGuida(); return; }
+  if (d.noingr) { openNoIngr(d.noingr); return; }
+  if (d.pickpra && d.date) { S.swaps[d.date + ':pra'] = d.pickpra; save(); closeSheet(); render(); toast('Pranzo di domani: ' + R[d.pickpra].n); return; }
   if (d.casaopen !== undefined) { casaMsg = ''; openCasa(); return; }
   if (d.casa) { if (S.casa[d.casa]) delete S.casa[d.casa]; else S.casa[d.casa] = true; save(); openCasa(true); return; }
   if (d.casaclear !== undefined) { S.casa = {}; save(); casaMsg = ''; openCasa(); render(); return; }
@@ -1448,8 +1574,7 @@ document.addEventListener('click', async (e) => {
     if (!casaCount()) { casaMsg = 'Prima segna almeno qualche ingrediente.'; openCasa(); return; }
     const days = casaDays(d.casaplan), n = planFromCasa(days);
     if (d.casaplan === 'prossima') { selWeekOffset = 1; selDay = 0; } else { selWeekOffset = 0; selDay = dow(days[0]); }
-    closeSheet(); tab = 'settimana'; render();
-    toast(n ? 'Menu aggiornato: ' + n + ' piatti usano quello che hai' : 'Il menu andava già bene con quello che hai');
+    tab = 'settimana'; render(); openCasaRisultato(days);
     return;
   }
   if (d.riep !== undefined) { openRiepilogo(Number(d.riep)); return; }
