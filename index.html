@@ -253,7 +253,7 @@ const R = {
   d10:{t:'cen',cat:'carne',sg:'si',n:'Spiedini di pollo e verdure con patate',min:25,i:[['Petto di pollo a cubetti','1 palmo','cp'],['Zucchine, peperoni, cipolla','2 mani','fv'],['Patate','1 media e mezza','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Infila pollo e verdure negli spiedini (o cuocili sciolti).','Piastra o forno 15 minuti, patate al forno a fianco.']},
   d11:{t:'cen',cat:'uova',sg:'adatta',n:'Frittata al forno con zucchine e pane',min:25,i:[['Uova','2 + 1 albume','lu'],['Zucchine','2','fv'],['Grana','1 cucchiaio','lu'],['Pane integrale','1 fetta','pa'],['Insalata','2 mani','fv']],p:['Zucchine a rondelle, uova sbattute e grana.','In forno a 180° per 20 minuti in una teglia con carta forno.'],gf:'Per lei: pane senza glutine.'},
   d12:{t:'cen',cat:'formaggio',sg:'adatta',n:'Mozzarella, verdure grigliate e pane',min:15,i:[['Mozzarella','mezza (o 1 piccola)','lu'],['Verdure grigliate (anche surgelate)','3 mani','su'],['Pane integrale','1 fetta e mezza','pa'],['Olio extravergine','1 cucchiaio','di']],p:['Scalda le verdure grigliate in padella.','Servi con mozzarella, olio e basilico.'],gf:'Per lei: pane senza glutine.'},
-  d13:{t:'cen',cat:'veg',sg:'si',n:'Risotto veloce zucca e grana',min:25,i:[['Riso Carnaroli','6 cucchiai da crudo','di'],['Zucca a cubetti (anche surgelata)','2 mani','su'],['Brodo vegetale (dado senza glutine)','1/2 litro','di'],['Grana','1 cucchiaio','lu']],p:['Zucca in pentola con un filo d\'olio, poi il riso.','Brodo poco alla volta per 16-18 minuti.','Manteca con il grana, niente burro.'],gf:'Controlla che il dado riporti la spiga barrata.'},
+  d13:{t:'cen',cat:'veg',sg:'si',n:'Risotto veloce zucca e grana',min:25,i:[['Riso Carnaroli','6 cucchiai da crudo','di'],['Zucca a cubetti (anche surgelata)','2 mani','su'],['Brodo vegetale (dado senza glutine)','1/2 litro','di'],['Grana','1 cucchiaio','lu'],['Olio extravergine','1 cucchiaino','di']],p:['Zucca in pentola con un filo d\'olio, poi il riso.','Brodo poco alla volta per 16-18 minuti.','Manteca con il grana, niente burro.'],gf:'Controlla che il dado riporti la spiga barrata.'},
   d14:{t:'cen',cat:'pesce',sg:'adatta',n:'Pasta con zucchine e gamberetti',min:20,i:[['Pasta corta','1 pugno da crudo','di'],['Gamberetti surgelati','1 palmo','su'],['Zucchine','2','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Zucchine a cubetti in padella 6 minuti, poi i gamberetti 3 minuti.','Salta la pasta nel condimento.'],gf:'Per lei: pasta senza glutine in pentola separata.'},
   d15:{t:'cen',cat:'carne',sg:'si',n:'Tagliata di manzo, rucola e patate',min:20,i:[['Manzo magro (controfiletto o fesa)','1 palmo','cp'],['Rucola e pomodorini','2 mani','fv'],['Patate','1 media','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Piastra rovente, 3 minuti per lato.','Affetta su rucola e pomodorini.'],tip:'Carne rossa: massimo una volta a settimana, per il colesterolo.'},
   ffe:{t:'fes',cat:'festa',n:'Il pasto di festa',min:0,i:[],p:['Antipasti: un piattino con un assaggio di ciò che ti piace di più, non il giro completo.','Primo e secondo: uno dei due pieno, dell\'altro solo un assaggio.','Contorni e verdure quanti ne vuoi; pane un pezzo.','Dolce: una fetta di panettone o pandoro, oppure 2-3 dolcetti. Non tutti e due.','Vino o spumante: 2 calici al massimo, con un bicchiere d\'acqua tra uno e l\'altro.','Frutta secca e torrone: una manciata, poi allontana la ciotola.'],tip:'Mangia con calma e goditela: un pasto di festa non rovina niente. Contano i giorni normali in mezzo.'},
@@ -751,18 +751,56 @@ function lowFirst(t){ return /^[A-Z][a-zà-ù]/.test(t) ? t.charAt(0).toLowerCas
 function shortName(n){ return n.replace(/ \(.*\)/, '').replace(' extravergine', '').replace(' bianco', ''); }
 
 /* ---------------- Scheda ricetta ---------------- */
+let recipeView = 'me';
+const PLUR = { palmo:'palmi', pugno:'pugni', cucchiaio:'cucchiai', cucchiaino:'cucchiaini', fetta:'fette', mano:'mani', scatoletta:'scatolette', barattolo:'barattoli', mazzetto:'mazzetti', vasetto:'vasetti', bicchiere:'bicchieri', tazza:'tazze', manciata:'manciate', pezzetto:'pezzetti', cubetto:'cubetti', pacchetto:'pacchetti', litro:'litri', scolato:'scolati', piccola:'piccole', piccolo:'piccoli', media:'medie', medio:'medi', grande:'grandi', spessa:'spesse', spesso:'spessi', albume:'albumi', scarso:'scarsi', crudo:'crudo' };
+function plurWords(t){ const i = t.indexOf('('); const a = i < 0 ? t : t.slice(0, i), b = i < 0 ? '' : t.slice(i); return a.replace(/[a-zàèéìòù]+/gi, w => PLUR[w.toLowerCase()] || w) + b; }
+const DBL_FISSI = { 'mezza (o 1 piccola)':'1 (o 2 piccole)', 'qualche scaglia':'qualche scaglia in più', '1 a testa':'2 (uno a testa)' };
+function dbl(q){
+  const s0 = String(q).trim();
+  if (DBL_FISSI[s0]) return DBL_FISSI[s0];
+  if (s0.includes(' / ')) return s0.split(' / ').map(dbl).join(' / ');
+  if (/a piacere|quanto basta|q\.b\./i.test(s0)) return s0;
+  let m;
+  if ((m = s0.match(/^(\d+)\s*e\s*mezz[oa]\b(.*)$/i)) || (m = s0.match(/^(\d+)\s+(\S+)\s+e\s+mezz[oa]\b(.*)$/i))) {
+    const n = Number(m[1]) * 2 + 1; return m.length === 3 ? n + plurWords(m[2]) : n + ' ' + plurWords(m[2]) + m[3];
+  }
+  if ((m = s0.match(/^mezz[oa]\b(.*)$/i))) return '1' + m[1];
+  if ((m = s0.match(/^1\/2\s+(.*)$/))) return '1 ' + m[1];
+  if ((m = s0.match(/^(\d+)\s*\+\s*(\d+)\s+(.*)$/))) return (Number(m[1]) * 2) + ' + ' + (Number(m[2]) * 2) + ' ' + plurWords(m[3]);
+  if ((m = s0.match(/^(\d+)-(\d+)\s+(.*)$/))) return (Number(m[1]) * 2) + '-' + (Number(m[2]) * 2) + ' ' + plurWords(m[3]);
+  if ((m = s0.match(/^(\d+)(\s+.*)?$/))) { const n = Number(m[1]) * 2; return n + (m[2] ? plurWords(m[2]) : ''); }
+  if ((m = s0.match(/^(una?|uno)\s+(.*)$/i))) return '2 ' + plurWords(m[2]);
+  return 'il doppio di: ' + s0;
+}
+function condimentiCard(r){
+  if (!['pra','cen','fes','leg'].includes(r.t) || !r.i.length) return '';
+  const olio = r.i.find(x => /olio/i.test(x[0]));
+  let h = '<div class="card stack"><span class="lab">Condimenti</span><ul class="clean">';
+  h += '<li><span style="font-weight:700;min-width:62px">Olio</span><span>' + (olio ? '<b>' + esc(olio[1]) + '</b> di extravergine per tutto il piatto, cottura compresa. Misuralo con il cucchiaio, non a occhio dalla bottiglia.' : 'Non serve: questa ricetta non ne prevede.') + '</span></li>';
+  h += '<li><span style="font-weight:700;min-width:62px">Sale</span><span>Poco, e assaggia prima di aggiungerne. In tutta la giornata massimo 5 g (un cucchiaino raso), compreso quello già nei cibi.</span></li>';
+  h += '<li><span style="font-weight:700;min-width:62px">Liberi</span><span>Pepe, peperoncino, erbe, spezie, aglio, cipolla, limone, aceto di vino: danno sapore senza calorie.</span></li>';
+  h += '<li><span style="font-weight:700;min-width:62px">No</span><span>Burro, panna, maionese, salse pronte. Aceto balsamico al massimo un cucchiaino.</span></li>';
+  return h + '</ul></div>';
+}
 function openRecipe(id, dateKey, slot){
   const r = R[id], date = dateKey ? parseKey(dateKey) : new Date();
   let h = '<div class="grab"></div><div class="between"><span class="lab">' + (slot ? SLOTNAME[slot] : '') + (r.min ? ' · ' + r.min + ' min' : '') + '</span><button class="btn sec2 sm" data-close>Chiudi</button></div>';
   h += '<h2 style="font-size:22px">' + esc(r.n) + '</h2>';
   if (r.i.length) {
-    h += '<div class="card"><div class="lab" style="margin-bottom:4px">Ingredienti per te</div>';
-    r.i.forEach(([n, q]) => { h += '<div class="ing"><b>' + esc(n) + '</b><span>' + esc(q) + '</span></div>'; });
+    const canDue = ['pra','cen','fes','leg'].includes(r.t), due = canDue && recipeView === 'due';
+    if (canDue) h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt' + (due ? '' : ' on') + '" data-rview="me" data-id="' + id + '" data-date="' + (dateKey || '') + '" data-slot="' + (slot || '') + '">Per me</button><button class="opt' + (due ? ' on' : '') + '" data-rview="due" data-id="' + id + '" data-date="' + (dateKey || '') + '" data-slot="' + (slot || '') + '">Per due</button></div>';
+    h += '<div class="card"><div class="lab" style="margin-bottom:4px">' + (due ? 'Da cucinare per due' : 'Ingredienti per te') + '</div>';
+    r.i.forEach(([n, q]) => {
+      const gfLine = due && S.profilo.compagnaCeliaca && r.sg === 'adatta' && /pasta|spaghetti|pane|ditalini/i.test(n);
+      h += '<div class="ing"><b>' + esc(n) + '</b><span>' + esc(due ? (gfLine ? q + ' normale per te + ' + q + ' senza glutine per lei' : dbl(q)) : q) + (due && !gfLine && !/a piacere/i.test(q) ? '<br><span class="small" style="color:var(--green-d)">nel tuo piatto: ' + esc(q) + '</span>' : '') + '</span></div>';
+    });
+    if (due) h += '<div class="small mut" style="padding-top:8px">Cucina tutto insieme e servi prima il tuo piatto con la tua porzione; il resto è per lei. Se lei mangia meno, riduci la sua parte di pasta, riso o pane.' + (S.profilo.compagnaCeliaca && r.sg === 'adatta' ? ' Pasta e pane senza glutine in pentola e tagliere separati.' : '') + '</div>';
     h += '</div>';
   }
   if (slot) extraLines(date, slot).forEach(l => { h += '<div class="tip">' + ICON.info + '<span>' + esc(l) + '</span></div>'; });
   h += '<div class="card"><div class="lab" style="margin-bottom:6px">Come si fa</div><ol class="steps">' + r.p.map(x => '<li>' + esc(x) + '</li>').join('') + '</ol></div>';
   if (casaCount() && r.i.length) { const miss = missingOf(id); h += miss.length ? '<div class="tip o">' + ICON.info + '<span><b>Da comprare:</b> ' + esc(miss.join(', ')) + '. Il resto ce l\'hai.</span></div>' : '<div class="tip">' + ICON.check + '<span><b>Hai tutto</b> per questa ricetta.</span></div>'; }
+  h += condimentiCard(r);
   if (r.tip) h += '<div class="tip">' + ICON.check + '<span>' + esc(r.tip) + '</span></div>';
   if (r.cat === 'legumi') h += '<div class="tip">' + ICON.info + '<span>Per non gonfiarti: sciacqua bene i legumi sotto l\'acqua e mangia con calma. Se ti gonfiano, all\'inizio fanne mezza porzione.</span></div>';
   if (id === 'dpz') h += '<div class="tip o">' + ICON.info + '<span>Pizza e birra gonfiano per sale e bollicine: domani la pancia sarà un po\' più tesa. È acqua, passa in un giorno o due.</span></div>';
@@ -1737,6 +1775,7 @@ document.addEventListener('click', async (e) => {
     clearPlans(); save(); closeSheet(); render(); toast('Non lo vedrai più nel menu'); return;
   }
   if (d.unescl) { delete S.escl[d.unescl]; clearPlans(); save(); t.remove(); render(); toast('Rimesso nel menu'); return; }
+  if (d.rview) { recipeView = d.rview; const sc = $('.sheet') ? $('.sheet').scrollTop : 0; openRecipe(d.id, d.date || null, d.slot || null); if ($('.sheet')) $('.sheet').scrollTop = sc; return; }
   if (d.sost) { askSost(d.sost); return; }
   if (d.guida !== undefined) { openGuida(); return; }
   if (d.noingr) { openNoIngr(d.noingr); return; }
