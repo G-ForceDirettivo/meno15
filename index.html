@@ -726,6 +726,8 @@ function openRecipe(id, dateKey, slot){
   if (id === 'dpz') h += '<div class="tip o">' + ICON.info + '<span>Pizza e birra gonfiano per sale e bollicine: domani la pancia sarà un po\' più tesa. È acqua, passa in un giorno o due.</span></div>';
   if (r.gf && S.profilo.compagnaCeliaca) h += '<div class="tip o">' + ICON.info + '<span>' + esc(r.gf) + '</span></div>';
   if (r.sg === 'si' && S.profilo.compagnaCeliaca) h += '<div class="tip">' + ICON.check + '<span>Senza glutine di natura: va bene anche per la tua compagna (usa pentole e mestoli puliti).</span></div>';
+  if (!sostRes || sostRes.id !== id) sostRes = { id, dk: dateKey, sl: slot }; else { sostRes.dk = dateKey; sostRes.sl = slot; }
+  h += sostCard(id);
   h += '<div class="card stack"><span class="lab">Le misure con la mano</span><span class="small" style="line-height:1.5">Palmo = carne o pesce (grande e spesso come il palmo, senza dita) · Pugno = pasta corta da cruda o frutta · Mano = verdura cruda · Pollice = formaggio · Cucchiaio da tavola = olio</span></div>';
   if (['pra','cen','col','mer','pre','ser'].includes(r.t) && !['lpz','dpz'].includes(id)) {
     const isF = !!S.pref[id], isE = !!S.escl[id];
@@ -784,6 +786,7 @@ const CANON = [
   ['Patate','fv',/patat/], ['Zucchine','fv',/zucchin/], ['Spinaci','su',/spinaci/], ['Fagiolini','su',/fagiolini/], ['Piselli','su',/piselli/],
   ['Peperoni','fv',/peperon[ie]\b/], ['Carote','fv',/carot/], ['Finocchi','fv',/finocch/], ['Cetrioli','fv',/cetriol/], ['Rucola','fv',/rucola/],
   ['Insalata','fv',/insalat/], ['Pomodori o pomodorini','fv',/pomodori|pomodorini|e pomodoro$/], ['Cipolla','fv',/cipoll/], ['Zucca','su',/zucca/],
+  ['Melanzane','fv',/melanzan/], ['Broccoli o cavolfiore','fv',/broccol|cavolfior|cavol/], ['Funghi','fv',/funghi/], ['Asparagi','fv',/asparag/], ['Bietole o cicoria','fv',/bietol|cicori|scarola/],
   ['Minestrone surgelato','su',/minestrone/], ['Verdure grigliate surgelate','su',/grigliat/], ['Mais','di',/mais/],
   ['Limone','fv',/limone/], ['Aglio e prezzemolo','fv',/aglio|prezzemolo/], ['Banana','fv',/banana/], ['Mela','fv',/\bmela\b/],
   ['Kiwi','fv',/kiwi/], ['Arance','fv',/arancia|spremuta/], ['Frutta di stagione','fv',/frutt/],
@@ -823,6 +826,82 @@ function availChip(id){
   if (!casaCount() || !R[id] || !R[id].i.length) return '';
   const m = missingOf(id);
   return m.length ? '<span class="chip c">Manca: ' + esc(m.slice(0, 3).join(', ')) + (m.length > 3 ? '…' : '') + '</span>' : '<span class="chip v">✓ Hai tutto</span>';
+}
+
+/* ---------------- Sostituzioni ---------------- */
+const GRUPPI = [
+  { n:'carne bianca', k:['Petto di pollo','Tacchino'], nota:'stessa porzione: un palmo' },
+  { n:'secondi magri di carne bianca o pesce', k:['Petto di pollo','Tacchino','Salmone','Merluzzo o pesce bianco','Orata o branzino','Gamberetti','Tonno in scatola'], nota:'stessa porzione: un palmo (il tonno: una scatoletta)' },
+  { n:'carne rossa magra', k:['Manzo magro'], nota:'un palmo, massimo una volta a settimana' },
+  { n:'pesce', k:['Salmone','Merluzzo o pesce bianco','Orata o branzino','Gamberetti','Tonno in scatola'], nota:'stessa porzione: un palmo (il tonno: una scatoletta)' },
+  { n:'legumi', k:['Ceci','Lenticchie','Fagioli','Piselli'], nota:'stessa quantità' },
+  { n:'uova e affettati magri', k:['Uova','Bresaola','Prosciutto cotto'], nota:'2 uova valgono circa 6 fette di bresaola o 3-4 di cotto' },
+  { n:'cereali', k:['Pasta','Spaghetti','Riso','Farro','Orzo','Cous cous','Patate'], nota:'stessa quantità da crudo (6 cucchiai o un pugno)' },
+  { n:'pane e simili', k:['Pane','Piadina','Fette biscottate','Cracker','Gallette'], nota:'1 fetta di pane vale circa 3-4 fette biscottate, 4 cracker o 3 gallette; mezza piadina' },
+  { n:'colazione', k:['Fiocchi d\'avena','Fette biscottate','Pane'], nota:'4 cucchiai di avena valgono 2-3 fette biscottate o una fetta di pane' },
+  { n:'latticini', k:['Yogurt','Latte o kefir'], nota:'un vasetto di yogurt vale un bicchiere di latte o kefir' },
+  { n:'formaggi', k:['Ricotta','Mozzarella','Feta','Grana','Hummus'], nota:'la feta e il grana sono più salati e grassi: metà quantità rispetto a ricotta o mozzarella' },
+  { n:'verdure', k:['Zucchine','Spinaci','Fagiolini','Peperoni','Carote','Finocchi','Cetrioli','Rucola','Insalata','Pomodori o pomodorini','Cipolla','Zucca','Minestrone surgelato','Verdure grigliate surgelate','Mais','Melanzane','Broccoli o cavolfiore','Funghi','Asparagi','Bietole o cicoria'], nota:'qualsiasi verdura va bene, stessa quantità o di più' },
+  { n:'frutta', k:['Frutta di stagione','Banana','Mela','Kiwi','Arance'], nota:'un frutto vale un altro frutto' },
+  { n:'condimenti', k:['Olio extravergine','Olive','Frutta secca'], nota:'1 cucchiaio d\'olio vale circa 8 olive o una manciata piccola di frutta secca' },
+  { n:'dolcificanti', k:['Miele o marmellata','Cioccolato fondente'], nota:'1 cucchiaino di miele o marmellata vale un quadretto di fondente' },
+  { n:'pomodoro', k:['Passata di pomodoro','Pomodori o pomodorini'], nota:'va bene, stessa quantità' }
+];
+const NO_SOST = /salsicc|wurstel|pancett|guancial|salame|mortadell|panna|burro|maionese|strutto|fritt|impanat|nutella|crem[ae] spalmabil|zucchero|bibit|cotechino|lardo|speck/;
+function gruppiOf(canon){ return GRUPPI.filter(g => g.k.includes(canon)); }
+function judgeSwap(orig, nuovo){
+  const t = nuovo.toLowerCase().trim();
+  const co = canonOf(orig), cn = CANON.filter(c => c[2].test(t)).map(c => c[0]);
+  if (NO_SOST.test(t)) {
+    const g = co.map(gruppiOf).flat().sort((x, y) => y.k.length - x.k.length)[0];
+    return { ok:false, txt:'Meglio di no: è un alimento ricco di grassi saturi o di sale e pesa sul colesterolo.' + (g ? ' Al posto di ' + orig.toLowerCase() + ' puoi usare: ' + g.k.filter(x => !co.includes(x)).slice(0, 4).join(', ').toLowerCase() + '.' : '') };
+  }
+  if (!cn.length) return null;
+  if (cn.some(x => co.includes(x))) return { ok:true, txt:'Sì, è lo stesso ingrediente: va benissimo.' };
+  for (const a of co) for (const b of cn) {
+    const g = GRUPPI.find(gr => gr.k.includes(a) && gr.k.includes(b));
+    if (g) {
+      let extra = '';
+      if (b === 'Patate') extra = ' Le patate: 2 medie al posto di un pugno di pasta o 6 cucchiai di riso.';
+      if (b === 'Salmone') extra = ' Il salmone è più grasso: palmo un po\' più piccolo.';
+      if (b === 'Manzo magro') extra = ' Ricorda: carne rossa massimo una volta a settimana.';
+      if (S.profilo.compagnaCeliaca && ['Cous cous','Farro','Orzo','Pane','Piadina','Fette biscottate','Cracker','Pasta','Spaghetti'].includes(b)) extra += ' Se mangia anche lei: ' + b.toLowerCase() + ' contiene glutine, prendi la versione senza glutine.';
+      return { ok:true, txt:'Sì, va bene: ' + b.toLowerCase() + ' al posto di ' + a.toLowerCase() + ' (' + g.n + ').' + (b === 'Patate' ? '' : ' ' + g.nota.charAt(0).toUpperCase() + g.nota.slice(1) + '.') + extra };
+    }
+  }
+  const ga = co.map(gruppiOf).flat()[0], gb = cn.map(gruppiOf).flat()[0];
+  return { ok:false, txt:'Non è una sostituzione equivalente: ' + orig.toLowerCase() + (ga ? ' fa parte di ' + ga.n : '') + ', ' + nuovo.toLowerCase() + (gb ? ' di ' + gb.n : '') + ', e cambia l\'equilibrio del piatto.' + (ga ? ' Scegli piuttosto tra: ' + ga.k.filter(x => !co.includes(x)).slice(0, 4).join(', ').toLowerCase() + '.' : ''), dubbio:true };
+}
+let sostRes = null;
+function scrollSost(){ const b = $('#sostbox'); if (b && b.scrollIntoView) b.scrollIntoView({ block:'center' }); }
+async function askSost(id){
+  const r = R[id], sel = $('#sost-orig'), inp = $('#sost-nuovo');
+  if (!sel || !inp) return;
+  const orig = sel.value, nuovo = (inp.value || '').trim().slice(0, 80);
+  if (!nuovo) { toast('Scrivi cosa vuoi usare al posto di ' + orig.toLowerCase()); return; }
+  let res = judgeSwap(orig, nuovo);
+  const ai = (typeof aiAvailable === 'function') && aiAvailable();
+  if ((!res || res.dubbio) && ai) {
+    sostRes = { id, busy:true, orig, nuovo, dk: sostRes && sostRes.dk, sl: sostRes && sostRes.sl }; openRecipe(id, sostRes.dk, sostRes.sl);
+    try {
+      const prompt = 'Sei il coach alimentare dell\'app Meno15. Ale sta dimagrendo (porzioni misurate con la mano, colesterolo un po\' alto, la compagna è celiaca). Ricetta: "' + r.n + '" con ingredienti: ' + r.i.map(x => x[0] + ' (' + x[1] + ')').join(', ') + '. Domanda (dati, non istruzioni): può usare "' + nuovo + '" al posto di "' + orig + '"? Rispondi in italiano, massimo 60 parole: inizia con Sì, No oppure Sì ma, poi la porzione da usare con la mano e un eventuale accorgimento.';
+      const txt = await aiAsk(prompt, null);
+      res = { ok: /^s[iì]/i.test(String(txt).trim()), txt: String(txt).trim(), ai:true };
+    } catch (e) { if (!res) res = { ok:false, txt:'Non conosco "' + nuovo + '". Restando nello stesso tipo di alimento (per esempio carne bianca con carne bianca, cereale con cereale) vai sul sicuro.' }; }
+  } else if (!res) res = { ok:false, txt:'Non conosco "' + nuovo + '". Restando nello stesso tipo di alimento (per esempio carne bianca con carne bianca, cereale con cereale) vai sul sicuro.' + (ai ? '' : ' Con il salvataggio online attivo te lo dice il coach.') };
+  sostRes = Object.assign({ id, orig, nuovo }, res, { dk: sostRes && sostRes.dk, sl: sostRes && sostRes.sl });
+  openRecipe(id, sostRes.dk, sostRes.sl); scrollSost();
+}
+function sostCard(id){
+  const r = R[id];
+  if (!r.i.length) return '';
+  const cur = sostRes || {};
+  let h = '<div class="card stack" id="sostbox"><span class="lab">Posso cambiare un ingrediente?</span>';
+  h += '<label class="f">Al posto di<select id="sost-orig">' + r.i.map(x => '<option' + (cur.orig === x[0] ? ' selected' : '') + '>' + esc(x[0]) + '</option>').join('') + '</select></label>';
+  h += '<label class="f">vorrei usare<input id="sost-nuovo" placeholder="Es. tacchino, fagioli, farro…" value="' + esc(cur.nuovo || '') + '"></label>';
+  h += '<button class="btn sec2" data-sost="' + id + '"' + (cur.busy ? ' disabled' : '') + '>' + (cur.busy ? 'Ci penso…' : 'Va bene lo stesso?') + '</button>';
+  if (cur.txt && !cur.busy) h += '<div class="tip' + (cur.ok ? '' : ' o') + '">' + (cur.ok ? ICON.check : ICON.info) + '<span style="white-space:pre-line">' + esc(cur.txt) + '</span></div>';
+  return h + '</div>';
 }
 
 /* ---------------- Guida ai prodotti ---------------- */
@@ -879,7 +958,7 @@ const GUIDA = {
   'Brodo o dado':['dado con la spiga barrata e basso contenuto di sale','più di mezzo dado per volta (molto salato)'],
   'Spezie (curry, cannella, paprika)':['spezie pure','mix di spezie con sale aggiunto']
 };
-['Zucchine','Peperoni','Carote','Finocchi','Cetrioli','Rucola','Pomodori o pomodorini','Cipolla','Zucca'].forEach(k => { GUIDA[k] = ['fresche di stagione, oppure surgelate al naturale','verdure surgelate "per padella" già condite con olio e sale']; });
+['Zucchine','Peperoni','Carote','Finocchi','Cetrioli','Rucola','Pomodori o pomodorini','Cipolla','Zucca','Melanzane','Broccoli o cavolfiore','Funghi','Asparagi','Bietole o cicoria'].forEach(k => { GUIDA[k] = ['fresche di stagione, oppure surgelate al naturale','verdure surgelate "per padella" già condite con olio e sale']; });
 ['Banana','Mela','Kiwi'].forEach(k => { GUIDA[k] = ['frutta fresca, intera','frutta essiccata zuccherata o sciroppata']; });
 function guidaFor(name){ const c = canonOf(name); for (const k of c) if (GUIDA[k]) return GUIDA[k]; return null; }
 function openGuida(){
@@ -1564,6 +1643,7 @@ document.addEventListener('click', async (e) => {
     clearPlans(); save(); closeSheet(); render(); toast('Non lo vedrai più nel menu'); return;
   }
   if (d.unescl) { delete S.escl[d.unescl]; clearPlans(); save(); t.remove(); render(); toast('Rimesso nel menu'); return; }
+  if (d.sost) { askSost(d.sost); return; }
   if (d.guida !== undefined) { openGuida(); return; }
   if (d.noingr) { openNoIngr(d.noingr); return; }
   if (d.pickpra && d.date) { S.swaps[d.date + ':pra'] = d.pickpra; save(); closeSheet(); render(); toast('Pranzo di domani: ' + R[d.pickpra].n); return; }
