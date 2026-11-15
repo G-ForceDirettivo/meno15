@@ -769,13 +769,49 @@ function viewSettimana(){
   return h;
 }
 /* ---------------- Cosa ho in casa ---------------- */
+const CANON = [
+  ['Petto di pollo','cp',/pollo/], ['Tacchino','cp',/tacchino/], ['Manzo magro','cp',/manzo|macinato/], ['Salmone','cp',/salmone/],
+  ['Merluzzo o pesce bianco','su',/merluzzo|pesce bianco/], ['Orata o branzino','cp',/orata|branzino/], ['Gamberetti','su',/gamber/],
+  ['Bresaola','cp',/bresaola/], ['Prosciutto cotto','cp',/prosciutto cotto/],
+  ['Tonno in scatola','di',/tonno/], ['Ceci','di',/ceci/], ['Lenticchie','di',/lenticch/], ['Fagioli','di',/fagioli\b/],
+  ['Uova','lu',/uov/], ['Yogurt','lu',/yogurt/], ['Latte o kefir','lu',/latte|kefir/], ['Ricotta','lu',/ricotta/], ['Mozzarella','lu',/mozzarella/],
+  ['Feta','lu',/feta/], ['Grana','lu',/grana|parmigiano/], ['Hummus','lu',/hummus/],
+  ['Pasta','di',/pasta|ditalini/], ['Spaghetti','di',/spaghetti/], ['Riso','di',/\briso\b/], ['Farro','di',/farro/], ['Orzo','di',/orzo/],
+  ['Cous cous','di',/cous/], ['Fiocchi d\'avena','di',/avena/], ['Gallette','di',/gallett/],
+  ['Pane','pa',/\bpane\b|panino/], ['Piadina','pa',/piadina/], ['Fette biscottate','pa',/fette biscottate/], ['Cracker','pa',/cracker/],
+  ['Patate','fv',/patat/], ['Zucchine','fv',/zucchin/], ['Spinaci','su',/spinaci/], ['Fagiolini','su',/fagiolini/], ['Piselli','su',/piselli/],
+  ['Peperoni','fv',/peperon[ie]\b/], ['Carote','fv',/carot/], ['Finocchi','fv',/finocch/], ['Cetrioli','fv',/cetriol/], ['Rucola','fv',/rucola/],
+  ['Insalata','fv',/insalat/], ['Pomodori o pomodorini','fv',/pomodori|pomodorini|e pomodoro$/], ['Cipolla','fv',/cipoll/], ['Zucca','su',/zucca/],
+  ['Minestrone surgelato','su',/minestrone/], ['Verdure grigliate surgelate','su',/grigliat/], ['Mais','di',/mais/],
+  ['Limone','fv',/limone/], ['Aglio e prezzemolo','fv',/aglio|prezzemolo/], ['Banana','fv',/banana/], ['Mela','fv',/\bmela\b/],
+  ['Kiwi','fv',/kiwi/], ['Arance','fv',/arancia|spremuta/], ['Frutta di stagione','fv',/frutt/],
+  ['Passata di pomodoro','di',/passata/], ['Olio extravergine','di',/olio/], ['Olive','di',/olive/], ['Frutta secca','di',/mandorl|noci/],
+  ['Miele o marmellata','di',/miele|marmellata/], ['Cioccolato fondente','di',/cioccolat/], ['Tisane','di',/tisana/],
+  ['Brodo o dado','di',/brodo|dado/], ['Spezie (curry, cannella, paprika)','di',/curry|cannella|paprika|peperoncino/]
+];
+const canonCache = {};
+function canonOf(name){
+  if (canonCache[name]) return canonCache[name];
+  const n = name.toLowerCase();
+  let out = CANON.filter(c => c[2].test(n)).map(c => c[0]);
+  if (/gallett/.test(n)) out = ['Gallette'];
+  if (/pane in cassetta|fette biscottate/.test(n)) out = out.filter(x => x !== 'Pane' || /pane in cassetta/.test(n));
+  if (/frutto|frutta/.test(n) && !/secca/.test(n)) out = out.filter(x => x === 'Frutta di stagione');
+  return (canonCache[name] = out.length ? out : [shortName(name)]);
+}
 function catalogo(){
   const out = {};
-  Object.keys(R).forEach(id => R[id].i.forEach(([n, q, rep]) => { const k = shortName(n); if (!out[k]) out[k] = rep; }));
+  CANON.forEach(c => { out[c[0]] = c[1]; });
   return out;
 }
+function recipeCanon(id){
+  const set = new Set();
+  (R[id] ? R[id].i : []).forEach(x => canonOf(x[0]).forEach(c => set.add(c)));
+  set.delete('Olio extravergine'); set.delete('Spezie (curry, cannella, paprika)');
+  return [...set];
+}
 function haveScore(id){
-  const ings = R[id] ? R[id].i.map(x => shortName(x[0])) : [];
+  const ings = recipeCanon(id);
   if (!ings.length) return 0;
   const have = ings.filter(n => S.casa[n]).length;
   return have ? have + have / ings.length : 0;
@@ -839,7 +875,7 @@ async function fridgePhoto(file){
   try {
     const img = await shrinkImage(file);
     const names = Object.keys(catalogo());
-    const prompt = 'Nella foto c\'è l\'interno di un frigorifero, di un freezer o di una dispensa. Individua gli alimenti presenti e, per ciascuno, scegli il nome corrispondente SOLO da questa lista (copialo identico): ' + JSON.stringify(names) + '. Considera equivalenti le varianti ovvie (per esempio qualsiasi pasta corta = "Pasta corta integrale" o "Pasta corta"; qualsiasi frutto = "Frutto"). Rispondi soltanto con un array JSON di stringhe, senza altro testo.';
+    const prompt = 'Nella foto c\'è l\'interno di un frigorifero, di un freezer o di una dispensa. Individua gli alimenti presenti e, per ciascuno, scegli il nome corrispondente SOLO da questa lista (copialo identico): ' + JSON.stringify(names) + '. Considera equivalenti le varianti ovvie (per esempio qualsiasi pasta corta = "Pasta", qualsiasi frutto non elencato = "Frutta di stagione", qualsiasi formaggio stagionato grattugiato = "Grana"). Rispondi soltanto con un array JSON di stringhe, senza altro testo.';
     const txt = await aiAsk(prompt, img);
     const m = String(txt).match(/\[[\s\S]*\]/);
     const arr = m ? JSON.parse(m[0]) : [];
@@ -853,7 +889,9 @@ async function fridgePhoto(file){
 }
 function openCasa(keepScroll){
   const prevScroll = keepScroll && $('.sheet') ? $('.sheet').scrollTop : 0;
-  const cat = catalogo(), n = casaCount(), today = new Date(), questa = casaDays('questa');
+  const cat = catalogo(), today = new Date(), questa = casaDays('questa');
+  Object.keys(S.casa).forEach(k => { if (!cat[k]) delete S.casa[k]; });
+  const n = casaCount();
   let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Cosa ho in casa</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
   h += '<span class="small mut">Tocca gli ingredienti che hai in frigo, in freezer o in dispensa. Il menu userà prima quelli e la spesa conterrà solo ciò che manca.</span>';
   if (aiAvailable()) h += '<label class="btn sec2" style="cursor:pointer"><input type="file" id="fridgephoto" accept="image/*" capture="environment" class="hidden">' + (casaBusy ? 'Guardo la foto…' : 'Fotografa il frigo o la dispensa') + '</label>';
@@ -889,7 +927,7 @@ function buildSpesa(mk){
       if (s === 'cen' && due && gf && /dado|brodo/i.test(r.i.map(x => x[0]).join(' '))) add('Dado o brodo con la spiga barrata', 'sg', 0);
     });
   }
-  Object.keys(items).forEach(n => { if (S.casa && S.casa[n]) items[n].rep = 'casa'; });
+  Object.keys(items).forEach(n => { const c = canonOf(n); if (S.casa && c.length && c.every(x => S.casa[x])) items[n].rep = 'casa'; });
   return { monday, items, due };
 }
 const REP2 = Object.assign({}, REP, { sg:'Senza glutine (per lei)', casa:'Già in casa (non serve comprarlo)' });
