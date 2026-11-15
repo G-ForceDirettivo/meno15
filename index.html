@@ -199,6 +199,12 @@ const R = {
   b6:{t:'col',n:'Yogurt greco, noci e kiwi',min:3,i:[['Yogurt greco bianco','1 vasetto','lu'],['Noci','3-4 (una manciata piccola)','di'],['Kiwi','2','fv']],p:['Yogurt in ciotola, noci spezzate e kiwi a fette.']},
   b7:{t:'col',n:'Uova strapazzate e pane integrale',min:8,i:[['Uova','2','lu'],['Pane integrale','1 fetta grande','pa'],['Pomodorini','una manciata','fv']],p:['Strapazza le uova in padella antiaderente senza burro.','Servi con pane tostato e pomodorini.'],tip:'Ideale la domenica, quando hai più tempo.'},
 
+  /* SPUNTINI di metà mattina (leggeri) */
+  a1:{t:'spm',n:'Un frutto di stagione',min:0,i:[['Frutto di stagione','1','fv']],p:['Lavalo la sera prima e mettilo nello zaino.']},
+  a2:{t:'spm',n:'Yogurt bianco magro',min:0,i:[['Yogurt bianco magro','1 vasetto piccolo (125 g)','lu']],p:['Al bianco puoi aggiungere un pizzico di cannella, niente zucchero.']},
+  a4:{t:'spm',n:'Carota o finocchio crudo',min:2,i:[['Carote o finocchi','1','fv']],p:['Croccante e senza pensieri: tagliala a bastoncini la sera prima.']},
+  a5:{t:'spm',n:'Kiwi o arancia',min:0,i:[['Kiwi o arancia','1','fv']],p:['Ricchi di vitamina C, perfetti d\'inverno.']},
+  a6:{t:'spm',n:'Mela e un caffè',min:0,i:[['Mela','1','fv']],p:['Il caffè senza zucchero.']},
   /* MERENDE (pomeriggio) */
   m1:{t:'mer',n:'Un frutto e qualche mandorla',min:0,i:[['Frutto','1','fv'],['Mandorle','10 (una manciata piccola)','di']],p:['Da tenere nello zaino o in macchina.']},
   m2:{t:'mer',n:'Yogurt greco con cannella',min:1,i:[['Yogurt greco bianco','1 vasetto','lu'],['Cannella','a piacere','di']],p:['Sazia molto: perfetto contro la fame del pomeriggio.']},
@@ -262,7 +268,7 @@ function clearPlans(){ Object.keys(planCache).forEach(k => delete planCache[k]);
 /* ---------------- Stato ---------------- */
 const DEFAULT = {
   v:1,
-  profilo:{ nome:'', eta:null, altezza:null, pesoIniziale:null, pesoTarget:null, matrimonio:'', inizio:'', piscina:[], pizzaDay:5, cenePerDue:true, compagnaCeliaca:false, colesterolo:null },
+  profilo:{ nome:'', eta:null, altezza:null, pesoIniziale:null, pesoTarget:null, matrimonio:'', inizio:'', piscina:[], pizzaDay:5, cenePerDue:true, spuntino:true, compagnaCeliaca:false, colesterolo:null },
   fase:'dimagrimento', manteniDal:null,
   pesi:[],            // {d:'YYYY-MM-DD', kg}
   fame:[],            // {t, kind, level, ctx:[], ate:'' }
@@ -408,8 +414,9 @@ async function initCloud(){
 }
 
 /* ---------------- Piano settimanale ---------------- */
-const SLOTS = ['col','pra','mer','cen','ser'];
-const SLOTNAME = { col:'Colazione', pra:'Pranzo', mer:'Merenda', cen:'Cena', ser:'Fine serata' };
+const SLOTS = ['col','spu','pra','mer','cen','ser'];
+const SLOTNAME = { col:'Colazione', spu:'Spuntino', pra:'Pranzo', mer:'Merenda', cen:'Cena', ser:'Fine serata' };
+function activeSlots(){ return S.profilo.spuntino === false ? SLOTS.filter(x => x !== 'spu') : SLOTS; }
 function weekIndex(monday){ return Math.round((monday - mondayOf(parseKey('2026-11-16'))) / (7 * 864e5)); }
 function pizzaDayFor(monday){ const k = keyOf(monday); return (S.pizzaSettimana[k] != null) ? S.pizzaSettimana[k] : S.profilo.pizzaDay; }
 const planCache = {};
@@ -428,6 +435,7 @@ function basePlan(monday){
   const lunches = favFirst(byType('pra'), seed + 3);
   const cols = shuffle(byType('col'), seed + 5);
   const mers = shuffle(byType('mer'), seed + 7);
+  const spms = shuffle(byType('spm'), seed + 13);
   const pres = shuffle(byType('pre'), seed + 9);
   const sers = shuffle(byType('ser'), seed + 11);
   let li = 0;
@@ -454,7 +462,7 @@ function basePlan(monday){
     }
     used.add(pra);
     const pool = S.profilo.piscina.includes(i);
-    days.push({ col: cols[i % cols.length], pra, mer: pool ? pres[i % pres.length] : (i === pz ? 'm1' : mers[i % mers.length]), cen, ser: sers[i % sers.length] });
+    days.push({ col: cols[i % cols.length], spu: spms[i % spms.length], pra, mer: pool ? pres[i % pres.length] : (i === pz ? 'm1' : mers[i % mers.length]), cen, ser: sers[i % sers.length] });
   }
   planCache[mk] = days;
   return days;
@@ -489,20 +497,22 @@ function swapMeal(date, slot){
   const pool = t === 'pra' ? byType('pra') : t === 'cen' ? byType('cen') : byType(t);
   const used = weekUsed(mondayOf(date));
   const start = pool.indexOf(cur);
-  for (let n = 1; n <= pool.length; n++) {
-    const cand = pool[(start + n + pool.length) % pool.length];
-    if (!used.has(cand) || n === pool.length) { S.swaps[k + ':' + slot] = cand; break; }
-  }
+  if (pool.length < 2) { toast('Non ci sono alternative per questo pasto'); return; }
+  let pick = null;
+  for (let n = 1; n < pool.length; n++) { const cand = pool[(start + n + pool.length) % pool.length]; if (cand !== cur && !used.has(cand)) { pick = cand; break; } }
+  if (!pick) pick = pool[(start + 1 + pool.length) % pool.length];
+  if (pick === cur) pick = pool.find(x => x !== cur);
+  S.swaps[k + ':' + slot] = pick;
   save();
 }
 
 /* ---------------- Orari per turno ---------------- */
 const TURNI = {
-  mattina:{ l:'Mattina', col:'6:45', pra:'13:30', mer:'16:30', cen:'20:00', ser:'22:00', porta:['pra'] },
-  pomeriggio:{ l:'Pomeriggio', col:'8:00', pra:'12:30', mer:'16:30', cen:'20:30', ser:'22:30', porta:['mer'] },
-  sera:{ l:'Sera', col:'8:00', pra:'13:00', mer:'17:00', cen:'20:00', ser:'23:00', porta:['cen'] },
-  notte:{ l:'Notte', col:'9:30', pra:'13:30', mer:'17:00', cen:'20:00', ser:'2:00', porta:['ser'] },
-  riposo:{ l:'Riposo', col:'8:30', pra:'13:00', mer:'17:00', cen:'20:00', ser:'22:00', porta:[] }
+  mattina:{ l:'Mattina', col:'6:45', spu:'10:30', pra:'13:30', mer:'16:30', cen:'20:00', ser:'22:00', porta:['spu','pra'] },
+  pomeriggio:{ l:'Pomeriggio', col:'8:00', spu:'10:30', pra:'12:30', mer:'16:30', cen:'20:30', ser:'22:30', porta:['mer'] },
+  sera:{ l:'Sera', col:'8:00', spu:'10:30', pra:'13:00', mer:'17:00', cen:'20:00', ser:'23:00', porta:['cen'] },
+  notte:{ l:'Notte', col:'9:30', spu:'11:30', pra:'13:30', mer:'17:00', cen:'20:00', ser:'2:00', porta:['ser'] },
+  riposo:{ l:'Riposo', col:'8:30', spu:'11:00', pra:'13:00', mer:'17:00', cen:'20:00', ser:'22:00', porta:[] }
 };
 function turnoOf(date){ const k = keyOf(date); return S.turni[k] || (dow(date) === 6 ? 'riposo' : 'mattina'); }
 function slotInfo(date, slot){
@@ -524,12 +534,13 @@ function mantenimentoStep(){
 }
 const MANT_STEPS = [
   'Settimane 1-2: aggiungi 2 cucchiai di riso/pasta (o 1 fetta di pane) a pranzo.',
-  'Settimane 3-4: in più, una seconda merenda a metà mattina (frutto o yogurt).',
+  'Settimane 3-4: in più, a colazione una fetta di pane o 2 fette biscottate.',
   'Settimane 5-6: in più, 2 cucchiai di riso/pasta (o 1 fetta di pane) anche a cena.',
   'Da qui in poi: questo è il tuo mantenimento. Due serate libere a settimana invece di una.'
 ];
 function extraLines(date, slot){
   const lines = [];
+  if (slot === 'spu') lines.push('Spuntino leggero (50-80 kcal): è già dentro il piano. Se a metà mattina non hai fame, saltalo e non recuperarlo dopo.');
   const pool = S.profilo.piscina.includes(dow(date));
   if (pool && slot === 'cen' && !['dpz','ffe','fle'].includes(mealsFor(date).cen)) lines.push('Giorno di piscina: +1 fetta di pane o +2 cucchiai di riso/pasta.');
   const st = mantenimentoStep();
@@ -566,6 +577,7 @@ const SLOTICO = {
   pra:['#FBE9DD','#8A3A0E','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="11" rx="3"/><path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>'],
   mer:['#E3EEE8','#1F5A40','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8c-4-2-8 0-8 5s3 8 5 8c1 0 2-1 3-1s2 1 3 1c2 0 5-3 5-8s-4-7-8-5z"/><path d="M12 8c0-2 1-4 3-5"/></svg>'],
   cen:['#ECEAF4','#433A73','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><circle cx="12" cy="13" r="3"/><path d="M3 4v6M21 4v16M3 7h0"/></svg>'],
+  spu:['#FDF0E6','#8A3A0E','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'],
   ser:['#DCEBF5','#1D4E73','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"/></svg>']
 };
 function ringSvg(days, totDays){
@@ -610,7 +622,7 @@ function viewOggi(){
 function mealCards(date){
   const k = keyOf(date), meals = mealsFor(date);
   let h = '<div class="stack" style="gap:10px">';
-  SLOTS.forEach(s => {
+  activeSlots().forEach(s => {
     const id = meals[s], r = R[id], info = slotInfo(date, s), done = S.fatti[k + ':' + s], ic = SLOTICO[s];
     const chips = r.i.slice(0, 4).map(([n, q]) => '<span class="chip ' + chipClass(n) + '">' + esc(q.length < 22 ? q + ' ' + lowFirst(shortName(n)) : shortName(n)) + '</span>').join('');
     const gf = (s === 'cen' && S.profilo.compagnaCeliaca && r.sg) ? (r.sg === 'si' ? '<span class="chip v">Va bene anche per lei</span>' : r.sg === 'adatta' ? '<span class="chip c">Per lei: versione senza glutine</span>' : '') : '';
@@ -729,7 +741,7 @@ function openRecipe(id, dateKey, slot){
   if (!sostRes || sostRes.id !== id) sostRes = { id, dk: dateKey, sl: slot }; else { sostRes.dk = dateKey; sostRes.sl = slot; }
   h += sostCard(id);
   h += '<div class="card stack"><span class="lab">Le misure con la mano</span><span class="small" style="line-height:1.5">Palmo = carne o pesce (grande e spesso come il palmo, senza dita) · Pugno = pasta corta da cruda o frutta · Mano = verdura cruda · Pollice = formaggio · Cucchiaio da tavola = olio</span></div>';
-  if (['pra','cen','col','mer','pre','ser'].includes(r.t) && !['lpz','dpz'].includes(id)) {
+  if (['pra','cen','col','mer','pre','ser','spm'].includes(r.t) && !['lpz','dpz'].includes(id)) {
     const isF = !!S.pref[id], isE = !!S.escl[id];
     h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt' + (isF ? ' on gr' : '') + '" data-fav="' + id + '" data-date="' + (dateKey || '') + '" data-slot="' + (slot || '') + '">' + (isF ? '♥ Tra i preferiti' : '♡ Preferito') + '</button><button class="opt' + (isE ? ' on or' : '') + '" data-escl="' + id + '" data-date="' + (dateKey || '') + '" data-slot="' + (slot || '') + '">' + (isE ? 'Escluso' : 'Non mi piace') + '</button></div>';
     h += '<span class="small mut">I preferiti tornano più spesso nel menu; "Non mi piace" lo toglie per sempre (lo rimetti dalle Impostazioni).</span>';
@@ -1021,7 +1033,7 @@ function casaCount(){ return Object.keys(S.casa || {}).length; }
 function planFromCasa(days){
   if (!days.length) return 0;
   const monday = mondayOf(days[0]), rangeKeys = days.map(keyOf);
-  rangeKeys.forEach(k => ['col','pra','mer','cen'].forEach(sl => { delete S.swaps[k + ':' + sl]; }));
+  rangeKeys.forEach(k => ['col','spu','pra','mer','cen'].forEach(sl => { delete S.swaps[k + ':' + sl]; }));
   const used = new Set();
   for (let i = 0; i < 7; i++) { const d = addDays(monday, i); if (!rangeKeys.includes(keyOf(d))) { const m = mealsFor(d); SLOTS.forEach(sl => used.add(m[sl])); } }
   const rnd = rng(Date.now() % 100000);
@@ -1041,6 +1053,7 @@ function planFromCasa(days){
     }
     const bc = best(byType('col').filter(c => !used.has(c)));
     if (bc.id && bc.sc > haveScore(m.col)) { S.swaps[k + ':col'] = bc.id; used.add(bc.id); changed++; }
+    if (R[m.spu] && R[m.spu].t === 'spm') { const bs = best(byType('spm').filter(c => !used.has(c))); if (bs.id && bs.sc > haveScore(m.spu)) { S.swaps[k + ':spu'] = bs.id; used.add(bs.id); changed++; } }
     if (R[m.mer] && R[m.mer].t === 'mer') { const bm = best(byType('mer').filter(c => !used.has(c))); if (bm.id && bm.sc > haveScore(m.mer)) { S.swaps[k + ':mer'] = bm.id; used.add(bm.id); changed++; } }
   });
   save();
@@ -1118,7 +1131,7 @@ function buildSpesa(mk){
   const add = (name, rep, n) => { if (!items[name]) items[name] = { rep, count:0 }; items[name].count += n; };
   for (let i = 0; i < 7; i++) {
     const m = mealsFor(addDays(monday, i));
-    SLOTS.forEach(s => {
+    activeSlots().forEach(s => {
       const r = R[m[s]], per = (s === 'cen' && due) ? 2 : 1;
       r.i.forEach(([n, q, rep]) => {
         const nm = shortName(n);
@@ -1379,7 +1392,7 @@ function weekStats(monday){
   const pesiW = S.pesi.filter(w => w.d >= days[0] && w.d <= days[6]);
   const prev = S.pesi.filter(w => w.d < days[0]);
   const pesoFine = pesiW.length ? pesiW[pesiW.length - 1].kg : null, pesoPrima = prev.length ? prev[prev.length - 1].kg : null;
-  let fatti = 0; days.forEach(k => SLOTS.forEach(s => { if (S.fatti[k + ':' + s]) fatti++; }));
+  let fatti = 0; days.forEach(k => activeSlots().forEach(s => { if (S.fatti[k + ':' + s]) fatti++; }));
   const bev = days.map(k => S.bevande[k]).filter(Boolean);
   const media = (arr, f) => arr.length ? arr.reduce((a, x) => a + (x[f] || 0), 0) / arr.length : null;
   const fame = S.fame.filter(f => f.t >= t0 && f.t < t1), stress = (S.stress || []).filter(f => f.t >= t0 && f.t < t1);
@@ -1387,7 +1400,7 @@ function weekStats(monday){
   return { days, pesoFine, pesoPrima, fatti, acqua: media(bev, 'acqua'), gas: media(bev, 'gas'), bevGiorni: bev.length, fame: fame.length, stress: stress.length, stressOk: stress.filter(x => x.preso === 'niente').length, alcolStress: stress.filter(x => x.preso === 'birra' || x.preso === 'vino').length, pancia: panc.length ? panc.reduce((a, x) => a + x.v, 0) / panc.length : null, panciaGiorni: panc.length, feste: days.filter(k => S.feste[k]).length };
 }
 function weekTip(w){
-  if (w.fatti < 15) return 'Segna i pasti mangiati con il cerchio: anche solo farlo aiuta a seguire il piano.';
+  if (w.fatti < 18) return 'Segna i pasti mangiati con il cerchio: anche solo farlo aiuta a seguire il piano.';
   if (w.acqua != null && w.acqua < 6) return 'Punta sull\'acqua: una bottiglia da mezzo litro sempre con te, e bevi prima di ogni pasto.';
   if (w.gas != null && w.gas > gasLimit()) return 'Coca Zero sopra il limite: tienine in frigo solo il numero di lattine della settimana.';
   if (w.fame >= 5) return 'Raptus frequenti: guarda in "Ho fame" a che ora arrivano e tieni pronta la merenda proprio per quel momento.';
@@ -1403,7 +1416,7 @@ function openRiepilogo(offset){
   const dPeso = (w.pesoFine != null && w.pesoPrima != null) ? w.pesoFine - w.pesoPrima : null;
   h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))">';
   h += box(w.pesoFine != null ? fmtKg(w.pesoFine) + ' kg' : '—', dPeso != null ? (dPeso <= 0 ? '−' + fmtKg(-dPeso) : '+' + fmtKg(dPeso)) + ' kg sulla settimana prima' : 'pesata della settimana', dPeso != null && dPeso <= 0 ? 'var(--green)' : null);
-  h += box(w.fatti + '/35', 'pasti segnati come mangiati');
+  h += box(w.fatti + '/' + (activeSlots().length * 7), 'pasti segnati come mangiati');
   h += box(w.acqua != null ? fmtKg(w.acqua) : '—', 'bicchieri d\'acqua al giorno', w.acqua != null && w.acqua >= 7 ? 'var(--green)' : null);
   h += box(w.gas != null ? fmtKg(w.gas) : '—', 'lattine gassate al giorno (max ' + gasLimit() + ')', w.gas != null && w.gas > gasLimit() ? 'var(--orange)' : null);
   h += box(w.fame, 'raptus segnati');
@@ -1433,7 +1446,7 @@ function reportHtml(){
   h += '</table>';
   h += '<h2 style="font-size:15px;margin:0 0 6px">Andamento del peso</h2><table style="border-collapse:collapse;width:100%;margin-bottom:14px">' + S.pesi.map(w => row(fmtDate(parseKey(w.d)) + ' ' + parseKey(w.d).getFullYear(), fmtKg(w.kg) + ' kg')).join('') + '</table>';
   h += '<h2 style="font-size:15px;margin:0 0 6px">Impostazione dell\'alimentazione</h2><ul style="margin:0 0 14px;padding-left:18px">';
-  h += '<li>Porzioni misurate con la mano (palmo, pugno, cucchiai), 4-5 pasti al giorno con merenda fissa.</li>';
+  h += '<li>Porzioni misurate con la mano (palmo, pugno, cucchiai), 5-6 pasti al giorno con spuntino e merenda fissi.</li>';
   h += '<li>Pesce 2-3 volte a settimana, legumi 2-3 volte, avena a colazione; carne rossa massimo una volta; pochi salumi, formaggi stagionati, fritti e burro.</li>';
   h += '<li>Una pizza con una birra media a settimana; pasti di festa con regole e pasto successivo leggero.</li>';
   h += '<li>Riduzione graduale delle bibite gassate (Coca Zero) e obiettivo di 8 bicchieri d\'acqua al giorno.</li></ul>';
@@ -1564,6 +1577,7 @@ function openSettings(){
   h += '<div class="lab">Giorni di piscina</div><div class="seg" style="grid-template-columns:repeat(7,minmax(0,1fr))">' + GG.map((g, i) => '<button class="opt' + (p.piscina.includes(i) ? ' on' : '') + '" data-pool="' + i + '">' + g + '</button>').join('') + '</div>';
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-gf" style="width:22px;height:22px"' + (p.compagnaCeliaca ? ' checked' : '') + '> Mostra le indicazioni senza glutine per la mia compagna</label>';
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-due" style="width:22px;height:22px"' + (p.cenePerDue !== false ? ' checked' : '') + '> La cena la cucino per due (lista della spesa)</label>';
+  h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-spu" style="width:22px;height:22px"' + (p.spuntino !== false ? ' checked' : '') + '> Spuntino di metà mattina</label>';
   const ex = Object.keys(S.escl || {}).filter(k => R[k]);
   h += '<div class="lab">Piatti esclusi</div>' + (ex.length ? '<div class="chips">' + ex.map(k => '<button class="opt" data-unescl="' + k + '" style="min-height:38px;border-radius:999px;padding:6px 12px;font-weight:500">' + esc(R[k].n) + ' ✕</button>').join('') + '</div><span class="small mut">Tocca un piatto per rimetterlo nel menu.</span>' : '<span class="small mut">Nessuno. Li escludi dalla scheda di una ricetta con "Non mi piace".</span>');
   h += '<button class="btn pri" id="st-save">Salva</button></div>';
@@ -1748,6 +1762,7 @@ document.addEventListener('click', async (e) => {
     p.pizzaDay = Number($('#st-pizza').value);
     p.compagnaCeliaca = $('#st-gf').checked;
     p.cenePerDue = $('#st-due').checked;
+    p.spuntino = $('#st-spu').checked;
     Object.keys(planCache).forEach(k => delete planCache[k]);
     save(); closeSheet(); render();
     { const pm = paceMsg(paceNeeded(lastWeight(), new Date(), p.pesoTarget, parseKey(p.matrimonio))); toast(pm.cls ? 'Salvato. Attenzione: ' + pm.txt.split(':')[0].toLowerCase() : 'Salvato: menu, tappe e grafico aggiornati'); }
