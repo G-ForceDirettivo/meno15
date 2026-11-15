@@ -588,7 +588,7 @@ function viewOggi(){
   if (!tags.length) tags.push('<span class="pill">' + TURNI[turnoOf(today)].l + '</span>');
   let h = '<div class="hero">';
   h += '<div class="between" style="align-items:flex-start"><div><small>' + GIORNI[i] + ' ' + fmtDate(today) + '</small><h1>Ciao' + (p.nome ? ' ' + esc(p.nome) : '') + '</h1></div><div class="row" style="flex-wrap:wrap;justify-content:flex-end">' + tags.join('') + '</div></div>';
-  h += '<div class="hero-grid"><div class="stack" style="gap:8px"><span class="lab" style="color:#BFD8CB">' + (S.fase === 'mantenimento' ? 'Mantenimento' : 'Verso il traguardo') + '</span>';
+  h += '<div class="hero-grid"><div class="stack" style="gap:8px"><span class="lab" style="color:#BFD8CB">' + (S.fase === 'mantenimento' ? 'Mantenimento' : 'Verso l\'obiettivo') + '</span>';
   h += '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-family:Space Grotesk,system-ui,sans-serif;font-size:34px;font-weight:700;line-height:1">' + fmtKg(peso) + '</span><span class="mut">kg</span></div>';
   h += '<div class="bar"><i style="width:' + pct + '%"></i></div><span class="small mut">−' + fmtKg(persi) + ' di ' + fmtKg(tot) + ' kg · ' + (S.pesi.length > 1 ? 'pesata del ' + fmtDate(parseKey(S.pesi[S.pesi.length - 1].d)) : 'pesati il lunedì mattina') + '</span></div>';
   h += ringSvg(daysLeft, totDays) + '</div></div>';
@@ -1251,7 +1251,7 @@ async function askCoach(){
   const useSb = !sample && sb && sbUser;
   if (!sample && !useSb) { aiText = 'Il coach si attiva con il salvataggio online: accedi in Progressi › Impostazioni e dati.'; render(); return; }
   const p = S.profilo, mk = keyOf(mondayOf(new Date()));
-  const ctx = 'Sei il coach alimentare dell\'app Meno15 di ' + (p.nome || 'un utente') + ': uomo di ' + p.eta + ' anni, ' + p.altezza + ' cm, peso attuale circa ' + fmtKg(lastWeight()) + ' kg, obiettivo ' + p.pesoTarget + ' kg per il matrimonio (' + p.matrimonio + '). Fase: ' + S.fase + '. ' +
+  const ctx = 'Sei il coach alimentare dell\'app Meno15 di ' + (p.nome || 'un utente') + ': uomo di ' + p.eta + ' anni, ' + p.altezza + ' cm, peso attuale circa ' + fmtKg(lastWeight()) + ' kg, obiettivo ' + p.pesoTarget + ' kg entro la data obiettivo (' + p.matrimonio + '). Fase: ' + S.fase + '. ' +
     'Ha il colesterolo un po\' alto: privilegia pesce, legumi, verdure, carne bianca, olio d\'oliva; limita fritti, salumi, formaggi stagionati, burro e panna. ' +
     'Non conta grammi né calorie: indica le porzioni con la mano (palmo per carne/pesce, pugno per carboidrati, mani per verdure) o in pezzi/fette. ' +
     'Ha già nel piano una pizza con una birra media a settimana (giorno: ' + GIORNI[pizzaDayFor(mondayOf(new Date()))] + '). ' +
@@ -1449,7 +1449,7 @@ function openSettings(){
   let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Impostazioni</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
   h += accountCard();
   h += '<div class="card stack">';
-  h += '<label class="f">Data del matrimonio<input type="date" id="st-wed" value="' + esc(p.matrimonio) + '"></label>';
+  h += '<label class="f">Data obiettivo<input type="date" id="st-wed" value="' + esc(p.matrimonio) + '"></label>';
   h += '<label class="f">Peso di partenza (kg)<input type="text" step="0.1" inputmode="decimal" id="st-start" value="' + p.pesoIniziale + '"></label>';
   h += '<label class="f">Peso obiettivo (kg)<input type="text" step="0.1" inputmode="decimal" id="st-target" value="' + p.pesoTarget + '"></label>';
   h += '<label class="f">Data di inizio<input type="date" id="st-inizio" value="' + esc(p.inizio) + '"></label>';
@@ -1473,7 +1473,7 @@ function viewSetup(){
   h += '<label class="f">Come ti chiami<input id="su-nome" autocomplete="given-name" value="' + esc(p.nome || '') + '"></label>';
   h += '<div class="row"><label class="f" style="flex:1">Età<input id="su-eta" type="number" inputmode="numeric" value="' + esc(p.eta || '') + '"></label><label class="f" style="flex:1">Altezza (cm)<input id="su-alt" type="number" inputmode="numeric" value="' + esc(p.altezza || '') + '"></label></div>';
   h += '<div class="row"><label class="f" style="flex:1">Peso di oggi (kg)<input id="su-peso" type="text" step="0.1" inputmode="decimal" value="' + esc(p.pesoIniziale || '') + '"></label><label class="f" style="flex:1">Peso obiettivo (kg)<input id="su-target" type="text" step="0.1" inputmode="decimal" value="' + esc(p.pesoTarget || '') + '"></label></div>';
-  h += '<label class="f">Entro quando (es. il matrimonio)<input id="su-data" type="date" value="' + esc(p.matrimonio || '') + '"></label>';
+  h += '<label class="f">Data obiettivo<input id="su-data" type="date" value="' + esc(p.matrimonio || '') + '"></label>';
   h += '<div class="lab">Giorni di piscina</div><div class="seg" style="grid-template-columns:repeat(7,minmax(0,1fr))">' + GG.map((g, i) => '<button class="opt' + (p.piscina.includes(i) ? ' on' : '') + '" data-pool="' + i + '">' + g + '</button>').join('') + '</div>';
   h += '<label class="f">Sera della pizza<select id="su-pizza">' + GIORNI.map((g, i) => '<option value="' + i + '"' + (i === p.pizzaDay ? ' selected' : '') + '>' + g + '</option>').join('') + '</select></label>';
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="su-gf" style="width:22px;height:22px"' + (p.compagnaCeliaca ? ' checked' : '') + '> Cucino anche per una persona celiaca</label>';
