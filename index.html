@@ -94,6 +94,7 @@ h1,h2,h3{font-family:'Space Grotesk',Inter,sans-serif;margin:0}
 .sheet{background:var(--bg);width:100%;max-width:480px;max-height:90vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
 .grab{width:40px;height:5px;border-radius:9px;background:#C9D3CD;margin:0 auto 4px}
 ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.45}
+details.nu{background:var(--card,#fff);border:1px solid var(--line);border-radius:18px;padding:0 16px}details.nu>summary{list-style:none;cursor:pointer;min-height:54px;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px}details.nu>summary::-webkit-details-marker{display:none}details.nu>summary::after{content:'+';font-size:22px;font-weight:400;color:var(--ink2)}details.nu[open]>summary::after{content:'–'}details.nu>div{padding:0 0 14px;display:flex;flex-direction:column;gap:8px}.sem{display:flex;flex-wrap:wrap;gap:6px}.sem span{font-size:13px;padding:5px 10px;border-radius:999px}
 ul.clean{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
 ul.clean li{font-size:14px;line-height:1.45;display:flex;gap:8px}
 .ing{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:7px 0;border-bottom:1px solid var(--line)}
@@ -971,6 +972,7 @@ function viewSettimana(){
   h += '</div><span class="small mut">Quel giorno il pranzo diventa più leggero. Una birra media è compresa.</span></div>';
   h += balanceCard(monday);
   h += altroWeekCard(monday);
+  h += '<button class="card meal" data-nutri style="border-color:#9CC3E4"><span class="lab">Guida</span><span class="dish">Mangiare bilanciato</span><span class="small mut">Cosa mangiare ogni giorno e ogni settimana, il semaforo dei cibi, colesterolo e falsi miti</span></button>';
   h += '<div class="sec"><h2>' + GIORNI[selDay] + ' ' + fmtDate(date) + '</h2><span class="small mut">' + TURNI[turnoOf(date)].l + '</span></div>';
   h += '<div class="seg seg5" style="grid-template-columns:repeat(5,minmax(0,1fr))">';
   Object.keys(TURNI).forEach(t => { h += '<button class="opt' + (turnoOf(date) === t ? ' on' : '') + '" data-turno="' + t + '" data-day="' + keyOf(date) + '">' + TURNI[t].l + '</button>'; });
@@ -1184,6 +1186,79 @@ function openGuida(){
     ks.forEach(k => { h += '<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b style="font-size:14px">' + esc(k) + '</b><div class="small" style="color:var(--green-d)">Scegli: ' + esc(GUIDA[k][0]) + '</div><div class="small" style="color:#8A3A0E">Evita: ' + esc(GUIDA[k][1]) + '</div></div>'; });
     h += '</div>';
   });
+  sheet(h);
+}
+
+/* ---------------- Guida all'alimentazione ---------------- */
+const NUTRI = [
+  { t:'Il piatto giusto', it:[
+    ['Metà piatto', 'verdure, cotte o crude: è la parte che sazia con poche calorie.'],
+    ['Un quarto', 'proteine: un palmo di carne o pesce, 2 uova, mezzo barattolo di legumi o un pollice e mezzo di formaggio.'],
+    ['Un quarto', 'carboidrati, meglio integrali: un pugno di pasta da cruda, 5-6 cucchiai di riso o farro, 1-2 fette di pane o una patata e mezza.'],
+    ['Condimento', '1 cucchiaio di olio extravergine per tutto il piatto, misurato col cucchiaio.'],
+    ['Da bere', 'acqua. Vino e birra non sono acqua: sono nel jolly o nella sera della pizza.']
+  ]},
+  { t:'Ogni giorno', it:[
+    ['Verdure', 'a pranzo e a cena, almeno 2 porzioni al giorno.'],
+    ['Frutta', '2-3 frutti al giorno, interi e non spremuti: la fibra sazia, il succo no.'],
+    ['Cereali', 'a ogni pasto principale una porzione, meglio integrali (pasta, riso, farro, orzo, pane, avena).'],
+    ['Latte e yogurt', '1-2 porzioni: un bicchiere di latte o un vasetto di yogurt bianco.'],
+    ['Olio extravergine', '2-3 cucchiai in tutta la giornata, è il grasso principale.'],
+    ['Acqua', 'circa 1,5-2 litri; di più nei giorni di piscina.'],
+    ['Sale', 'meno di un cucchiaino raso in tutta la giornata (meno di 5 g), compreso quello già nel pane, nei formaggi e nei piatti pronti.']
+  ]},
+  { t:'Ogni settimana: i secondi', it:[
+    ['Legumi', '3-5 volte: ceci, lenticchie, fagioli, piselli. Contano come proteine, e aiutano il colesterolo.'],
+    ['Pesce', '2-4 volte, anche surgelato o tonno al naturale. Il pesce azzurro e il salmone sono i migliori.'],
+    ['Carne bianca', '2-3 volte: pollo, tacchino, coniglio.'],
+    ['Carne rossa', 'al massimo 1 volta: manzo, maiale, vitello, scegliendo tagli magri.'],
+    ['Uova', '1-2 pasti, cioè 2-4 uova a settimana, contando anche quelle nelle frittate.'],
+    ['Formaggi', 'al massimo 2 volte come piatto, meglio freschi e magri (ricotta, fiocchi di latte, mozzarella light).'],
+    ['Salumi', 'raramente e in poche fette: meglio bresaola, prosciutto cotto o crudo sgrassato.'],
+    ['Nell\'app', 'il menu rispetta già questi numeri: li vedi in Settimana, "Proteine della settimana".']
+  ]},
+  { t:'Il colesterolo', it:[
+    ['Aiutano', 'avena, legumi, verdure e frutta (fibra), olio extravergine al posto del burro, pesce, una manciata piccola di noci o mandorle.'],
+    ['Limita', 'formaggi stagionati, carni grasse, salumi, burro, panna, strutto, dolci da forno e biscotti.'],
+    ['Evita', 'fritti, prodotti con grassi idrogenati o olio di palma, merendine.'],
+    ['Uova', 'vanno bene nella misura del piano (2-4 a settimana): incidono sul colesterolo molto meno dei grassi saturi.'],
+    ['Caffè', 'moka ed espresso vanno bene fino a 3 al giorno. Il caffè bollito o alla turca alza di più il colesterolo.'],
+    ['Peso', 'perdere 5-10 kg di solito abbassa già il colesterolo. Ricontrollalo con il medico dopo qualche mese.']
+  ]},
+  { t:'Miti da sfatare', it:[
+    ['"I carboidrati la sera fanno ingrassare"', 'No: conta quanto mangi in tutta la giornata, non l\'ora. Una porzione giusta a cena aiuta anche a dormire.'],
+    ['"Saltare i pasti fa dimagrire"', 'No: arrivi al pasto dopo affamato e mangi di più. Per questo l\'app non toglie mai un pasto.'],
+    ['"Integrale vuol dire meno calorie"', 'No: le calorie sono quasi uguali, ma sazia di più e alza meno la glicemia.'],
+    ['"Light, quindi posso mangiarne di più"', 'Spesso tolgono grassi e aggiungono zucchero. Guarda le porzioni, non la scritta.'],
+    ['"Reset metabolico", detox e tisane drenanti', 'Non ci sono prove che "resettino" qualcosa. Il metabolismo si aiuta con proteine a ogni pasto, movimento e sonno.'],
+    ['"Dopo la piscina posso mangiare di più"', 'Il piano conta già l\'allenamento: una fetta di pane in più a cena, non un premio.'],
+    ['"La frutta va mangiata lontano dai pasti"', 'Falso: va bene quando vuoi. Conta il totale, 2-3 frutti al giorno.']
+  ]},
+  { t:'Zuccheri, alcol e bibite', it:[
+    ['Zuccheri aggiunti', 'meno di 50 g al giorno, meglio sotto i 25 g: un cucchiaino di zucchero sono 5 g, una lattina di cola normale circa 35 g.'],
+    ['Bibite zero', 'non hanno zuccheri, ma il gas gonfia: rispetta il limite di Coca Zero dell\'app.'],
+    ['Alcol', 'una birra media ha le calorie di un panino piccolo e apre la fame. Nel piano c\'è nella sera della pizza; il resto con misura.'],
+    ['Dolci', '2 quadretti di fondente la sera sono già previsti. Il dolce vero è nel jolly o nei giorni di festa.']
+  ]}
+];
+const SEMAFORO = [
+  ['Ogni giorno, senza paura', '#E3F4EC', '#0B5F3A', ['verdure di ogni tipo','frutta (2-3)','legumi','pesce','yogurt bianco','acqua','spezie ed erbe','aceto e limone','caffè senza zucchero','tisane']],
+  ['Sì, ma nella porzione giusta', '#FFF1D6', '#7A4B00', ['pasta, riso, pane','patate','olio extravergine','uova','carne bianca','formaggi freschi','frutta secca (una manciata)','fondente (2 quadretti)','miele e marmellata (un cucchiaino)','Coca Zero (col limite)']],
+  ['Raramente, fuori dal piano', '#FDE3DC', '#8A3A0E', ['fritti','salumi grassi e insaccati','burro, panna, strutto','merendine, biscotti, dolci da forno','snack salati e patatine','bibite zuccherate e succhi','superalcolici','sughi pronti con panna','fast food']]
+];
+function openNutri(){
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Mangiare bilanciato</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<span class="small mut">Le regole su cui è costruito il tuo piano, prese dalle Linee guida italiane per una sana alimentazione (CREA) e adattate al dimagrimento e al colesterolo.</span>';
+  h += '<div class="card stack"><span class="lab">Il semaforo</span>';
+  SEMAFORO.forEach(([t, bg, fg, xs]) => { h += '<b style="font-size:14px;color:' + fg + '">' + t + '</b><div class="sem">' + xs.map(x => '<span style="background:' + bg + ';color:' + fg + '">' + esc(x) + '</span>').join('') + '</div>'; });
+  h += '</div>';
+  NUTRI.forEach((sez, i) => {
+    h += '<details class="nu"' + (i === 0 ? ' open' : '') + '><summary>' + esc(sez.t) + '</summary><div><ul class="clean">';
+    sez.it.forEach(([a, b]) => { h += '<li style="flex-direction:column;gap:2px"><b>' + esc(a) + '</b><span>' + esc(b) + '</span></li>'; });
+    h += '</ul></div></details>';
+  });
+  h += '<button class="btn sec2" data-guida>Come scegliere i prodotti al supermercato</button>';
+  h += '<div class="tip">' + ICON.info + '<span>Sono indicazioni generali per un adulto sano. Per il colesterolo e per qualsiasi dubbio sulla salute, il riferimento resta il tuo medico.</span></div>';
   sheet(h);
 }
 
@@ -2051,6 +2126,7 @@ function viewProgressi(){
   h += vitaCard();
   h += panciaProgressCard();
   h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-riep="0" style="min-height:52px">La tua settimana</button><button class="opt" data-report style="min-height:52px">Riepilogo per il medico</button></div>';
+  h += '<button class="btn sec2" data-nutri>Guida: mangiare bilanciato</button>';
   // fase
   if (S.fase === 'dimagrimento') {
     const ready = peso <= p.pesoTarget || today >= wed;
@@ -2261,6 +2337,7 @@ document.addEventListener('click', async (e) => {
   if (d.rview) { recipeView = d.rview; const sc = $('.sheet') ? $('.sheet').scrollTop : 0; openRecipe(d.id, d.date || null, d.slot || null); if ($('.sheet')) $('.sheet').scrollTop = sc; return; }
   if (d.sost) { askSost(d.sost); return; }
   if (d.guida !== undefined) { openGuida(); return; }
+  if (d.nutri !== undefined) { openNutri(); return; }
   if (d.noingr) { openNoIngr(d.noingr); return; }
   if (d.pickpra && d.date) { S.swaps[d.date + ':pra'] = d.pickpra; save(); closeSheet(); render(); toast('Pranzo di domani: ' + R[d.pickpra].n); return; }
   if (d.casaopen !== undefined) { casaMsg = ''; openCasa(); return; }
