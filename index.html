@@ -201,9 +201,9 @@ const R = {
 
   /* SPUNTINI di metà mattina (leggeri) */
   a1:{t:'spm',n:'Un frutto di stagione',min:0,i:[['Frutto di stagione','1','fv']],p:['Lavalo la sera prima e mettilo nello zaino.']},
-  a2:{t:'spm',n:'Yogurt bianco magro',min:0,i:[['Yogurt bianco magro','1 vasetto piccolo (125 g)','lu']],p:['Al bianco puoi aggiungere un pizzico di cannella, niente zucchero.']},
-  a4:{t:'spm',n:'Carota o finocchio crudo',min:2,i:[['Carote o finocchi','1','fv']],p:['Croccante e senza pensieri: tagliala a bastoncini la sera prima.']},
-  a5:{t:'spm',n:'Kiwi o arancia',min:0,i:[['Kiwi o arancia','1','fv']],p:['Ricchi di vitamina C, perfetti d\'inverno.']},
+  a2:{t:'spm',n:'Yogurt greco piccolo',min:0,i:[['Yogurt greco bianco (0-2% di grassi)','1 vasetto piccolo (125-150 g)','lu']],p:['Proteine che saziano fino a pranzo.','Cannella sì, zucchero e miele no.']},
+  a4:{t:'spm',n:'Fiocchi di latte',min:0,i:[['Fiocchi di latte magri','mezzo vasetto (circa 100 g)','lu']],p:['Con pepe o erba cipollina: salati e sazianti.','Si portano facilmente al lavoro in un contenitore piccolo.']},
+  a5:{t:'spm',n:'Kefir bianco',min:0,i:[['Kefir bianco','1 bicchiere piccolo (150 ml)','lu']],p:['Si beve in un attimo e tiene buona la pancia.','Prendi quello bianco, non quello alla frutta.']},
   a6:{t:'spm',n:'Mela e un caffè',min:0,i:[['Mela','1','fv']],p:['Il caffè senza zucchero.']},
   /* MERENDE (pomeriggio) */
   m1:{t:'mer',n:'Un frutto e qualche mandorla',min:0,i:[['Frutto','1','fv'],['Mandorle','10 (una manciata piccola)','di']],p:['Da tenere nello zaino o in macchina.']},
@@ -420,9 +420,9 @@ function activeSlots(){ return S.profilo.spuntino === false ? SLOTS.filter(x => 
 function weekIndex(monday){ return Math.round((monday - mondayOf(parseKey('2026-11-16'))) / (7 * 864e5)); }
 function pizzaDayFor(monday){ const k = keyOf(monday); return (S.pizzaSettimana[k] != null) ? S.pizzaSettimana[k] : S.profilo.pizzaDay; }
 const planCache = {};
-function basePlan(monday){
+function basePlanV1(monday){
   const mk = keyOf(monday) + '|' + pizzaDayFor(monday) + '|' + Object.keys(S.escl || {}).sort().join(',') + '|' + Object.keys(S.pref || {}).sort().join(',');
-  if (planCache[mk]) return planCache[mk];
+  if (planCache['v1|' + mk]) return planCache['v1|' + mk];
   const w = weekIndex(monday), seed = 1000 + w * 7919;
   const pz = pizzaDayFor(monday);
   const pattern = shuffle(['pesce','legumi','carne','pesce','uova','legumi','carne'], seed);
@@ -464,8 +464,84 @@ function basePlan(monday){
     const pool = S.profilo.piscina.includes(i);
     days.push({ col: cols[i % cols.length], spu: spms[i % spms.length], pra, mer: pool ? pres[i % pres.length] : (i === pz ? 'm1' : mers[i % mers.length]), cen, ser: sers[i % sers.length] });
   }
-  planCache[mk] = days;
+  planCache['v1|' + mk] = days;
   return days;
+}
+/* Equilibrio proteico della settimana (linee guida CREA, con occhio al colesterolo).
+   Contano pranzi e cene, esclusi pizza e giorni di festa. */
+const BAL = [
+  { c:'legumi', l:'Legumi', min:3, max:5 },
+  { c:'pesce', l:'Pesce', min:2, max:4 },
+  { c:'carne', l:'Carne (bianca o magra)', min:2, max:4 },
+  { c:'uova', l:'Uova', min:1, max:2 },
+  { c:'formaggio', l:'Formaggio come piatto', min:0, max:2 }
+];
+const ROSSA = ['d15','l9'];
+const SPM_PROT = ['a2','a4','a5'];
+const MER_SAZ = ['m2','m1','m5','m3','m6'];
+const NUOVO_PIANO = '2026-11-23';
+function mainCat(id){ const r = R[id]; if (!r || !['pra','cen'].includes(r.t) || ['lpz','dpz','ffe','fle'].includes(id)) return null; return r.cat; }
+function weekBalance(monday, ov){
+  const cnt = {}; let rossa = 0, n = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(monday, i), k = keyOf(d), m = mealsFor(d);
+    ['pra','cen'].forEach(sl => { let id = m[sl]; if (ov && ov.key === k + ':' + sl) id = ov.id; const c = mainCat(id); if (!c) return; cnt[c] = (cnt[c] || 0) + 1; if (ROSSA.includes(id)) rossa++; n++; });
+  }
+  return { cnt, rossa, n };
+}
+function balScore(b){ let v = 0; BAL.forEach(x => { const c = b.cnt[x.c] || 0; if (c < x.min) v += x.min - c; if (c > x.max) v += c - x.max; }); if (b.rossa > 1) v += b.rossa - 1; return v; }
+function spmPool(){ const all = byType('spm'), p = SPM_PROT.filter(k => all.includes(k)); return p.concat(all.filter(k => !p.includes(k))); }
+function merPool(){ const all = byType('mer'), p = MER_SAZ.filter(k => all.includes(k)); return p.length >= 2 ? p : all; }
+function basePlan(monday){
+  const mk = keyOf(monday) + '|' + pizzaDayFor(monday) + '|' + Object.keys(S.escl || {}).sort().join(',') + '|' + Object.keys(S.pref || {}).sort().join(',');
+  if (planCache[mk]) return planCache[mk];
+  const w = weekIndex(monday), seed = 1000 + w * 7919;
+  const pz = pizzaDayFor(monday);
+  const cols = shuffle(byType('col'), seed + 5);
+  const mers = shuffle(merPool(), seed + 7);
+  const sp = spmPool(), spProt = sp.filter(k => SPM_PROT.includes(k));
+  const spms = shuffle(spProt.length ? spProt : sp, seed + 13);
+  const pres = shuffle(byType('pre'), seed + 9);
+  const sers = shuffle(byType('ser'), seed + 11);
+  let mains;
+  if (keyOf(monday) < NUOVO_PIANO) mains = basePlanV1(monday).map(d => ({ pra: d.pra, cen: d.cen }));
+  else {
+    const days = []; for (let i = 0; i < 7; i++) if (i !== pz) days.push(i);
+    // categorie: cene e pranzi pensati per stare nei limiti di BAL
+    let cenCats = ['pesce','pesce','carne','carne','legumi','leggero'];
+    let praCats = ['legumi','legumi','legumi','pesce','carne','uova'];
+    if (days.length === 7) { cenCats.push('pesce'); praCats.push('legumi'); }
+    cenCats = shuffle(cenCats, seed + 21);
+    let pr = null;
+    for (let t = 0; t < 300 && !pr; t++) { const c = shuffle(praCats, seed + 31 + t); if (c.every((x, j) => x !== cenCats[j] && !(x === 'uova' && cenCats[j] === 'leggero'))) pr = c; }
+    if (!pr) pr = praCats;
+    const used = new Set(); let rossa = 0;
+    const pick = (type, cat, sd) => {
+      const all = byType(type);
+      let list = all.filter(k => cat === 'leggero' ? ['uova','formaggio','veg'].includes(R[k].cat) : R[k].cat === cat);
+      if (!list.length) list = all;
+      list = favFirst(list, sd);
+      const ok = list.filter(k => !used.has(k) && !(rossa >= 1 && ROSSA.includes(k)));
+      const id = ok[0] || list.find(k => !(rossa >= 1 && ROSSA.includes(k))) || list[0];
+      used.add(id); if (ROSSA.includes(id)) rossa++;
+      return id;
+    };
+    mains = [];
+    for (let i = 0; i < 7; i++) {
+      if (i === pz) { mains.push({ pra:'lpz', cen:'dpz' }); continue; }
+      const j = days.indexOf(i);
+      const cen = pick('cen', cenCats[j], seed + i * 13);
+      const pra = pick('pra', pr[j], seed + i * 17 + 3);
+      mains.push({ pra, cen });
+    }
+  }
+  const out = [];
+  for (let i = 0; i < 7; i++) {
+    const pool = S.profilo.piscina.includes(i);
+    out.push({ col: cols[i % cols.length], spu: spms[i % spms.length], pra: mains[i].pra, mer: pool ? pres[i % pres.length] : (i === pz ? 'm1' : mers[i % mers.length]), cen: mains[i].cen, ser: sers[i % sers.length] });
+  }
+  planCache[mk] = out;
+  return out;
 }
 function mealsFor(date){
   const monday = mondayOf(date), i = dow(date), k = keyOf(date);
@@ -490,20 +566,58 @@ function weekUsed(monday){
   for (let i = 0; i < 7; i++) { const m = mealsFor(addDays(monday, i)); SLOTS.forEach(s => set.add(m[s])); }
   return set;
 }
+function balancedPick(date, slot, cur, used){
+  const k = keyOf(date), monday = mondayOf(date), pool = byType(slot === 'pra' ? 'pra' : 'cen');
+  const now = balScore(weekBalance(monday));
+  const oc = mainCat(mealsFor(date)[slot === 'pra' ? 'cen' : 'pra']), cc = R[cur] ? R[cur].cat : null;
+  const start = pool.indexOf(cur);
+  let best = null, bs = Infinity;
+  for (let n = 1; n <= pool.length; n++) {
+    const cand = pool[(start + n + pool.length) % pool.length];
+    if (cand === cur) continue;
+    const sc = balScore(weekBalance(monday, { key: k + ':' + slot, id: cand }));
+    let pen = sc * 100 + (sc > now ? 1000 * (sc - now) : 0);
+    if (R[cand].cat !== cc) pen += 50;
+    if (oc && R[cand].cat === oc) pen += 30;
+    if (used.has(cand)) pen += 60;
+    pen += n * 0.01;
+    if (pen < bs) { bs = pen; best = cand; }
+  }
+  return { id: best, peggiora: best ? balScore(weekBalance(monday, { key: k + ':' + slot, id: best })) > now : false };
+}
 function swapMeal(date, slot){
   const k = keyOf(date), cur = mealsFor(date)[slot];
   if (cur === 'dpz') { toast('La pizza si sposta da "Settimana".'); return; }
   const t = R[cur].t;
-  const pool = t === 'pra' ? byType('pra') : t === 'cen' ? byType('cen') : byType(t);
   const used = weekUsed(mondayOf(date));
+  if (t === 'pra' || t === 'cen') {
+    const r = balancedPick(date, slot, cur, used);
+    if (!r.id) { toast('Non ci sono alternative per questo pasto'); return; }
+    S.swaps[k + ':' + slot] = r.id;
+    save();
+    if (r.peggiora) toast('Fatto, ma così la settimana è meno equilibrata: guarda "Proteine della settimana" in Settimana.');
+    return;
+  }
+  const pool = t === 'spm' ? spmPool() : t === 'mer' ? merPool() : byType(t);
   const start = pool.indexOf(cur);
   if (pool.length < 2) { toast('Non ci sono alternative per questo pasto'); return; }
   let pick = null;
-  for (let n = 1; n < pool.length; n++) { const cand = pool[(start + n + pool.length) % pool.length]; if (cand !== cur && !used.has(cand)) { pick = cand; break; } }
+  for (let n = 1; n < pool.length; n++) { const cand = pool[(start + n + pool.length) % pool.length]; if (cand !== cur && (t === 'mer' || !used.has(cand))) { pick = cand; break; } }
   if (!pick) pick = pool[(start + 1 + pool.length) % pool.length];
   if (pick === cur) pick = pool.find(x => x !== cur);
   S.swaps[k + ':' + slot] = pick;
   save();
+}
+function balanceCard(monday){
+  const b = weekBalance(monday), ok = balScore(b) === 0;
+  let h = '<div class="card stack"><div class="between"><span class="lab">Proteine della settimana</span><span class="small" style="font-weight:700;color:' + (ok ? 'var(--green-d)' : '#8A3A0E') + '">' + (ok ? '✓ In equilibrio' : 'Da sistemare') + '</span></div>';
+  BAL.forEach(x => {
+    const c = b.cnt[x.c] || 0, good = c >= x.min && c <= x.max;
+    h += '<div class="between" style="font-size:14px"><span>' + x.l + '</span><span><b style="color:' + (good ? 'var(--green-d)' : '#8A3A0E') + '">' + c + '</b> <span class="small mut">(giusto ' + (x.min ? x.min + '-' + x.max : 'max ' + x.max) + ')</span></span></div>';
+  });
+  if (b.rossa > 1) h += '<span class="small" style="color:#8A3A0E">Carne rossa o bresaola ' + b.rossa + ' volte: tienila a 1 volta a settimana per il colesterolo.</span>';
+  h += '<span class="small mut">Pranzi e cene, pizza e feste escluse. "Cambia piatto" cerca sempre un piatto che tenga questo equilibrio.</span></div>';
+  return h;
 }
 
 /* ---------------- Orari per turno ---------------- */
@@ -543,7 +657,7 @@ const MANT_STEPS = [
 ];
 function extraLines(date, slot){
   const lines = [];
-  if (slot === 'spu') lines.push('Spuntino leggero (50-80 kcal): è già dentro il piano. Se a metà mattina non hai fame, saltalo e non recuperarlo dopo.');
+  if (slot === 'spu') lines.push('Spuntino proteico leggero (circa 80-100 kcal): è già dentro il piano e serve ad arrivare a pranzo senza fame. Se a metà mattina non hai fame, saltalo e non recuperarlo dopo.');
   const pool = S.profilo.piscina.includes(dow(date));
   if (pool && slot === 'cen' && !['dpz','ffe','fle'].includes(mealsFor(date).cen)) lines.push('Giorno di allenamento: +1 fetta di pane o +2 cucchiai di riso/pasta.');
   const st = mantenimentoStep();
@@ -840,6 +954,7 @@ function viewSettimana(){
   h += '<div class="card stack"><div class="between"><span class="lab">Sera della pizza questa settimana</span></div><div class="seg" style="grid-template-columns:repeat(7,minmax(0,1fr))">';
   for (let i = 0; i < 7; i++) h += '<button class="opt' + (i === pz ? ' on or' : '') + '" data-pizza="' + i + '" aria-label="Pizza ' + GIORNI[i] + '">' + GG[i] + '</button>';
   h += '</div><span class="small mut">Quel giorno il pranzo diventa più leggero. Una birra media è compresa.</span></div>';
+  h += balanceCard(monday);
   h += '<div class="sec"><h2>' + GIORNI[selDay] + ' ' + fmtDate(date) + '</h2><span class="small mut">' + TURNI[turnoOf(date)].l + '</span></div>';
   h += '<div class="seg seg5" style="grid-template-columns:repeat(5,minmax(0,1fr))">';
   Object.keys(TURNI).forEach(t => { h += '<button class="opt' + (turnoOf(date) === t ? ' on' : '') + '" data-turno="' + t + '" data-day="' + keyOf(date) + '">' + TURNI[t].l + '</button>'; });
@@ -858,7 +973,7 @@ const CANON = [
   ['Merluzzo o pesce bianco','su',/merluzzo|pesce bianco/], ['Orata o branzino','cp',/orata|branzino/], ['Gamberetti','su',/gamber/],
   ['Bresaola','cp',/bresaola/], ['Prosciutto cotto','cp',/prosciutto cotto/],
   ['Tonno in scatola','di',/tonno/], ['Ceci','di',/ceci/], ['Lenticchie','di',/lenticch/], ['Fagioli','di',/fagioli\b/],
-  ['Uova','lu',/uov/], ['Yogurt','lu',/yogurt/], ['Latte o kefir','lu',/latte|kefir/], ['Ricotta','lu',/ricotta/], ['Mozzarella','lu',/mozzarella/],
+  ['Uova','lu',/uov/], ['Yogurt','lu',/yogurt/], ['Fiocchi di latte','lu',/fiocchi di latte/], ['Latte o kefir','lu',/latte|kefir/], ['Ricotta','lu',/ricotta/], ['Mozzarella','lu',/mozzarella/],
   ['Feta','lu',/feta/], ['Grana','lu',/grana|parmigiano/], ['Hummus','lu',/hummus/],
   ['Pasta','di',/pasta|ditalini/], ['Spaghetti','di',/spaghetti/], ['Riso','di',/\briso\b/], ['Farro','di',/farro/], ['Orzo','di',/orzo/],
   ['Cous cous','di',/cous/], ['Fiocchi d\'avena','di',/avena/], ['Gallette','di',/gallett/],
@@ -1116,9 +1231,9 @@ function openPianoB(slot, dateKey){
 /* ---------------- Piano C: cosa preparo con quello che ho adesso ---------------- */
 const PC_REGOLE = {
   col:'colazione: una fonte di proteine (yogurt, latte, uova o ricotta) + un carboidrato (avena, pane, fette biscottate: circa 2 fette o 4 cucchiai di avena) + un frutto; niente dolci',
-  spu:'spuntino di metà mattina LEGGERO (50-80 kcal): un frutto, verdura cruda o uno yogurt bianco magro piccolo',
+  spu:'spuntino di metà mattina LEGGERO e proteico (80-100 kcal): uno yogurt greco piccolo, mezzo vasetto di fiocchi di latte o un bicchiere piccolo di kefir; in alternativa un frutto',
   pra:'pranzo: un palmo di proteine (carne bianca, pesce, uova, legumi), 6 cucchiai da crudo di cereali o un pugno di pasta corta da cruda (oppure 2 fette di pane o 2 patate medie), verdure abbondanti, 1 cucchiaio d\'olio in tutto',
-  mer:'merenda (150-200 kcal): un frutto con poche mandorle, uno yogurt, gallette con ricotta o simili',
+  mer:'merenda (150-200 kcal) che sazi, con proteine o grassi buoni: yogurt greco, un frutto con 10 mandorle, una mela con un pezzetto di grana, gallette con ricotta',
   cen:'cena: un palmo di proteine (pesce, carne bianca, uova, legumi), 4-5 cucchiai da crudo di cereali o una fetta di pane o una patata e mezza, verdure abbondanti, 1 cucchiaio d\'olio in tutto',
   ser:'fine serata facoltativo e leggero: tisana, un frutto o uno yogurt'
 };
@@ -1176,7 +1291,8 @@ async function runPianoC(slot, dateKey){
 
 function openNoIngr(dateKey){
   const has = casaCount() > 0, cur = mealsFor(parseKey(dateKey)).pra;
-  const list = byType('pra').map(id => ({ id, m: has ? missingOf(id) : null })).sort((a, b) => has ? (a.m.length - b.m.length || R[a.id].min - R[b.id].min) : (R[a.id].min - R[b.id].min));
+  const mon = mondayOf(parseKey(dateKey)), now = balScore(weekBalance(mon));
+  const list = byType('pra').map(id => ({ id, m: has ? missingOf(id) : null, sb: id !== cur && balScore(weekBalance(mon, { key: dateKey + ':pra', id })) > now })).sort((a, b) => (a.sb - b.sb) || (has ? (a.m.length - b.m.length || R[a.id].min - R[b.id].min) : (R[a.id].min - R[b.id].min)));
   let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Pranzo di domani</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
   if (!has) h += '<div class="tip o">' + ICON.info + '<span>Segna prima cosa hai in casa (in Settimana › Cosa ho in casa): così ti metto in cima i pranzi che puoi fare subito. Intanto ecco i più veloci.</span></div><button class="btn sec2" data-casaopen>Segna cosa ho in casa</button>';
   else h += '<span class="small mut">In cima quelli che puoi fare con quello che hai. Tocca "Scelgo questo" e diventa il pranzo di domani.</span>';
@@ -1184,6 +1300,7 @@ function openNoIngr(dateKey){
     const ok = has && !x.m.length;
     h += '<div class="card stack" style="' + (ok ? 'border-color:var(--green)' : '') + '"><div class="between"><b style="font-size:15px">' + esc(R[x.id].n) + '</b><span class="small mut">' + R[x.id].min + ' min</span></div>';
     if (has) h += x.m.length ? '<span class="small" style="color:#8A3A0E">Manca: ' + esc(x.m.join(', ')) + '</span>' : '<span class="small" style="color:var(--green-d)">✓ Hai tutto</span>';
+    if (x.sb) h += '<span class="small mut">Sbilancia un po\' le proteine della settimana</span>';
     h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-recipe="' + x.id + '">Ricetta</button><button class="opt' + (x.id === cur ? ' on gr' : '') + '" data-pickpra="' + x.id + '" data-date="' + dateKey + '">' + (x.id === cur ? 'Già scelto' : 'Scelgo questo') + '</button></div></div>';
   });
   h += '<div class="card stack"><span class="lab">Non hai proprio niente?</span><span style="font-size:14px;line-height:1.5">Avanzi della cena di stasera (cucinane una porzione in più e portala), oppure il Piano B: cosa comprare al lavoro, al bar, al supermercato o al distributore.</span><button class="btn hot" data-pianob="pra" data-date="' + dateKey + '">Apri il Piano B</button></div>';
@@ -1208,13 +1325,16 @@ function planFromCasa(days){
       if (b.id && b.sc > haveScore(m.cen)) { S.swaps[k + ':cen'] = b.id; used.add(b.id); cenCat = R[b.id].cat; changed++; } else used.add(m.cen);
     }
     if (!['lpz','ffe','fle'].includes(m.pra)) {
-      const b = best(byType('pra').filter(c => !used.has(c) && R[c].cat !== cenCat));
+      const praCat = R[m.pra] ? R[m.pra].cat : null;
+      let cands = byType('pra').filter(c => !used.has(c) && R[c].cat === praCat && R[c].cat !== cenCat);
+      if (!cands.length) cands = byType('pra').filter(c => !used.has(c) && R[c].cat !== cenCat && balScore(weekBalance(monday, { key: k + ':pra', id: c })) <= balScore(weekBalance(monday)));
+      const b = best(cands);
       if (b.id && b.sc > haveScore(m.pra)) { S.swaps[k + ':pra'] = b.id; used.add(b.id); changed++; } else used.add(m.pra);
     }
     const bc = best(byType('col').filter(c => !used.has(c)));
     if (bc.id && bc.sc > haveScore(m.col)) { S.swaps[k + ':col'] = bc.id; used.add(bc.id); changed++; }
-    if (R[m.spu] && R[m.spu].t === 'spm') { const bs = best(byType('spm').filter(c => !used.has(c))); if (bs.id && bs.sc > haveScore(m.spu)) { S.swaps[k + ':spu'] = bs.id; used.add(bs.id); changed++; } }
-    if (R[m.mer] && R[m.mer].t === 'mer') { const bm = best(byType('mer').filter(c => !used.has(c))); if (bm.id && bm.sc > haveScore(m.mer)) { S.swaps[k + ':mer'] = bm.id; used.add(bm.id); changed++; } }
+    if (R[m.spu] && R[m.spu].t === 'spm') { const bs = best(spmPool().filter(c => !used.has(c) && SPM_PROT.includes(c))); if (bs.id && bs.sc > haveScore(m.spu)) { S.swaps[k + ':spu'] = bs.id; used.add(bs.id); changed++; } }
+    if (R[m.mer] && R[m.mer].t === 'mer') { const bm = best(merPool().filter(c => !used.has(c))); if (bm.id && bm.sc > haveScore(m.mer)) { S.swaps[k + ':mer'] = bm.id; used.add(bm.id); changed++; } }
   });
   save();
   return changed;
