@@ -279,6 +279,8 @@ const DEFAULT = {
   jolly:{},           // monday key -> count
   spesa:{},           // monday key -> {nome:true}
   fatti:{},           // 'YYYY-MM-DD:slot' -> true
+  mangiato:{},        // 'YYYY-MM-DD:slot' -> {testo, piatto, kcal, prev, cat, rossa, voto, fb, ts}
+  comp:{},            // 'YYYY-MM-DD:slot' -> {az, da, kcal}  compensazioni sui pasti dopo
   stress:[],
   bevande:{},
   pref:{},
@@ -485,7 +487,10 @@ function weekBalance(monday, ov){
   const cnt = {}; let rossa = 0, n = 0;
   for (let i = 0; i < 7; i++) {
     const d = addDays(monday, i), k = keyOf(d), m = mealsFor(d);
-    ['pra','cen'].forEach(sl => { let id = m[sl]; if (ov && ov.key === k + ':' + sl) id = ov.id; const c = mainCat(id); if (!c) return; cnt[c] = (cnt[c] || 0) + 1; if (ROSSA.includes(id)) rossa++; n++; });
+    ['pra','cen'].forEach(sl => {
+      const me = S.mangiato && S.mangiato[k + ':' + sl];
+      if (me && !(ov && ov.key === k + ':' + sl)) { if (me.cat && me.cat !== 'fuori') { cnt[me.cat] = (cnt[me.cat] || 0) + 1; n++; } if (me.rossa) rossa++; return; }
+      let id = m[sl]; if (ov && ov.key === k + ':' + sl) id = ov.id; const c = mainCat(id); if (!c) return; cnt[c] = (cnt[c] || 0) + 1; if (ROSSA.includes(id)) rossa++; n++; });
   }
   return { cnt, rossa, n };
 }
@@ -657,6 +662,8 @@ const MANT_STEPS = [
 ];
 function extraLines(date, slot){
   const lines = [];
+  const cp = S.comp && S.comp[keyOf(date) + ':' + slot];
+  if (cp && !(S.mangiato && S.mangiato[keyOf(date) + ':' + slot])) lines.push('Compensa: ' + COMP_TXT[cp.az] + ' (' + cp.perche + ')');
   if (slot === 'spu') lines.push('Spuntino proteico leggero (circa 80-100 kcal): è già dentro il piano e serve ad arrivare a pranzo senza fame. Se a metà mattina non hai fame, saltalo e non recuperarlo dopo.');
   const pool = S.profilo.piscina.includes(dow(date));
   if (pool && slot === 'cen' && !['dpz','ffe','fle'].includes(mealsFor(date).cen)) lines.push('Giorno di allenamento: +1 fetta di pane o +2 cucchiai di riso/pasta.');
@@ -747,12 +754,20 @@ function mealCards(date){
     h += '<div class="card mc"' + (done ? ' style="opacity:.62"' : '') + '>';
     h += '<div class="mc-head"><span class="slotico" style="background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><div class="mc-when"><b>' + SLOTNAME[s] + ' · ' + info.time + '</b><span class="small mut">' + esc(info.note || '') + '</span></div>';
     h += '<button class="checkbtn' + (done ? ' on' : '') + '" data-done="' + s + '" data-date="' + k + '" aria-label="' + (done ? 'Mangiato, tocca per annullare' : 'Segna come mangiato') + '" aria-pressed="' + (done ? 'true' : 'false') + '">' + ICON.check + '</button></div>';
-    h += '<button class="meal" style="background:none;padding:0" data-recipe="' + id + '" data-date="' + k + '" data-slot="' + s + '"><span class="dish">' + esc(r.n) + '</span>';
-    const av = availChip(id);
-    if (chips || gf || av) h += '<span class="chips">' + av + chips + gf + '</span>';
-    h += '</button>';
-    extraLines(date, s).forEach(l => { h += '<span class="small" style="color:var(--blue-d)">' + esc(l) + '</span>'; });
-    h += '<div class="mc-foot"><button class="linkbtn" data-swap="' + s + '" data-date="' + k + '">' + ICON.swap + ' Cambia piatto</button><button class="linkbtn" data-pianob="' + s + '" data-date="' + k + '" style="color:#8A3A0E">Piano B</button><button class="linkbtn" data-pianoc="' + s + '" data-date="' + k + '" style="color:#433A73">Piano C</button><span class="small mut">' + (r.min ? r.min + ' min' : '') + '</span></div>';
+    const me = S.mangiato[k + ':' + s];
+    if (me) {
+      const vc = VOTO[me.voto] || VOTO.cosi;
+      h += '<button class="meal" style="background:none;padding:0" data-altro="' + s + '" data-date="' + k + '"><span class="small mut" style="text-decoration:line-through">' + esc(r.n) + '</span><span class="dish">' + esc(me.piatto || me.testo) + '</span><span class="chips"><span class="chip" style="background:' + vc[1] + ';color:' + vc[2] + '">' + vc[0] + '</span>' + (me.kcal ? '<span class="chip">circa ' + me.kcal + ' kcal</span>' : '') + '</span></button>';
+      if (me.fb) h += '<span class="small" style="line-height:1.45">' + esc(me.fb) + '</span>';
+    } else {
+      h += '<button class="meal" style="background:none;padding:0" data-recipe="' + id + '" data-date="' + k + '" data-slot="' + s + '"><span class="dish">' + esc(r.n) + '</span>';
+      const av = availChip(id);
+      if (chips || gf || av) h += '<span class="chips">' + av + chips + gf + '</span>';
+      h += '</button>';
+    }
+    extraLines(date, s).forEach(l => { h += '<span class="small" style="color:' + (/^Compensa/.test(l) ? '#8A3A0E;font-weight:600' : 'var(--blue-d)') + '">' + esc(l) + '</span>'; });
+    if (me) h += '<div class="mc-foot"><button class="linkbtn" data-altro="' + s + '" data-date="' + k + '">Vedi o modifica</button><button class="linkbtn" data-altrodel="' + s + '" data-date="' + k + '" style="color:#8A3A0E">Torna al pasto del piano</button></div>';
+    else h += '<div class="mc-foot"><button class="linkbtn" data-swap="' + s + '" data-date="' + k + '">' + ICON.swap + ' Cambia</button><button class="linkbtn" data-pianob="' + s + '" data-date="' + k + '" style="color:#8A3A0E">Piano B</button><button class="linkbtn" data-pianoc="' + s + '" data-date="' + k + '" style="color:#433A73">Piano C</button><button class="linkbtn" data-altro="' + s + '" data-date="' + k + '" style="color:#0B5F55">Ho mangiato altro</button></div>';
     h += '</div>';
   });
   return h + '</div>';
@@ -955,6 +970,7 @@ function viewSettimana(){
   for (let i = 0; i < 7; i++) h += '<button class="opt' + (i === pz ? ' on or' : '') + '" data-pizza="' + i + '" aria-label="Pizza ' + GIORNI[i] + '">' + GG[i] + '</button>';
   h += '</div><span class="small mut">Quel giorno il pranzo diventa più leggero. Una birra media è compresa.</span></div>';
   h += balanceCard(monday);
+  h += altroWeekCard(monday);
   h += '<div class="sec"><h2>' + GIORNI[selDay] + ' ' + fmtDate(date) + '</h2><span class="small mut">' + TURNI[turnoOf(date)].l + '</span></div>';
   h += '<div class="seg seg5" style="grid-template-columns:repeat(5,minmax(0,1fr))">';
   Object.keys(TURNI).forEach(t => { h += '<button class="opt' + (turnoOf(date) === t ? ' on' : '') + '" data-turno="' + t + '" data-day="' + keyOf(date) + '">' + TURNI[t].l + '</button>'; });
@@ -1228,6 +1244,249 @@ function openPianoB(slot, dateKey){
   if (slot === 'pra') h += '<button class="btn sec2" data-noingr="' + dateKey + '">Vedi i pranzi che posso preparare con quello che ho</button>';
   sheet(h);
 }
+/* ---------------- Ho mangiato altro: valutazione e compensazione ---------------- */
+const SLOT_KCAL = { col:350, spu:90, pra:550, mer:175, cen:550, ser:80 };
+const VOTO = { bene:['Va bene','#E3F4EC','#0B5F3A'], cosi:['Così così','#FFF1D6','#7A4B00'], fuori:['Fuori piano','#FDE3DC','#8A3A0E'] };
+const COMP_TXT = {
+  carbo:'metà porzione di pasta, riso, pane o patate; proteine e verdure normali',
+  merleggera:'merenda leggera: solo un frutto o uno yogurt greco',
+  noser:'niente fine serata, al massimo una tisana',
+  noolio:'olio solo 1 cucchiaino invece di 1 cucchiaio'
+};
+const COMP_KCAL = { carbo:150, merleggera:80, noser:80, noolio:80 };
+const CAT_LBL = { carne:'Carne', pesce:'Pesce', legumi:'Legumi', uova:'Uova', formaggio:'Formaggio', veg:'Solo verdure / niente', fuori:'Pizza o pasto libero' };
+let alRes = null, alPhoto = null, alPhotoUrl = '';
+function plannedKcal(date, slot){
+  let v = SLOT_KCAL[slot] || 300;
+  const m = mealsFor(date);
+  if (slot === 'cen' && S.profilo.piscina.includes(dow(date)) && !['dpz','ffe','fle'].includes(m.cen)) v += 100;
+  if (m[slot] === 'dpz') v = 1000;
+  if (m[slot] === 'ffe') v = 1100;
+  if (m[slot] === 'lpz' || m[slot] === 'fle') v = 400;
+  return v;
+}
+function nextSlots(dateKey, slot){
+  const out = [], d0 = parseKey(dateKey);
+  for (let g = 0; g < 2; g++) {
+    const d = addDays(d0, g), k = keyOf(d), m = mealsFor(d);
+    activeSlots().forEach(sl => {
+      if (g === 0 && SLOTS.indexOf(sl) <= SLOTS.indexOf(slot)) return;
+      if (S.mangiato[k + ':' + sl] || S.fatti[k + ':' + sl]) return;
+      if (['dpz','ffe','lpz','fle'].includes(m[sl])) return;
+      out.push({ k, sl, d });
+    });
+  }
+  return out;
+}
+// piano di compensazione: mai saltare pasti, mai toccare colazione e spuntino, massimo 500 kcal
+function compPlan(dateKey, slot, extra){
+  if (extra <= 150) return { azioni: [], coperte: 0, resto: Math.max(0, extra) };
+  const cap = Math.min(extra, 500), azioni = [];
+  let tot = 0;
+  const slots = nextSlots(dateKey, slot).filter(x => !(S.comp[x.k + ':' + x.sl] && S.comp[x.k + ':' + x.sl].da !== dateKey + ':' + slot));
+  const order = [];
+  slots.forEach(x => { if (x.sl === 'ser') order.push([x, 'noser']); });
+  slots.forEach(x => { if (x.sl === 'pra' || x.sl === 'cen') order.push([x, 'carbo']); });
+  slots.forEach(x => { if (x.sl === 'mer' && !S.profilo.piscina.includes(dow(x.d))) order.push([x, 'merleggera']); });
+  const used = new Set();
+  for (const [x, az] of order) {
+    if (tot >= cap - 40) break;
+    if (used.has(x.k + ':' + x.sl)) continue;
+    used.add(x.k + ':' + x.sl); azioni.push({ k: x.k, sl: x.sl, az }); tot += COMP_KCAL[az];
+  }
+  // in ordine di orario, al massimo 4 interventi
+  azioni.sort((a, b) => (a.k + SLOTS.indexOf(a.sl)).localeCompare(b.k + SLOTS.indexOf(b.sl)));
+  return { azioni: azioni.slice(0, 4), coperte: Math.min(tot, cap), resto: Math.max(0, extra - Math.min(tot, cap)) };
+}
+function quando(k, sl){
+  const oggi = keyOf(new Date()), dom = keyOf(addDays(new Date(), 1));
+  return (SLOTNAME[sl] || sl).toLowerCase() + ' di ' + (k === oggi ? 'oggi' : k === dom ? 'domani' : GIORNI[dow(parseKey(k))].toLowerCase());
+}
+// riequilibra le proteine sui pasti che mancano in settimana
+function riequilibra(dateKey, slot, apply){
+  const d0 = parseKey(dateKey), mon = mondayOf(d0), cambi = [];
+  const futuri = [];
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(mon, i), k = keyOf(d);
+    if (k < dateKey) continue;
+    ['pra','cen'].forEach(sl => {
+      if (k === dateKey && SLOTS.indexOf(sl) <= SLOTS.indexOf(slot)) return;
+      if (S.mangiato[k + ':' + sl] || S.fatti[k + ':' + sl] || S.feste[k]) return;
+      const id = mealsFor(d)[sl]; if (!mainCat(id)) return;
+      futuri.push({ k, sl, d });
+    });
+  }
+  const saved = JSON.stringify(S.swaps);
+  for (let it = 0; it < 3; it++) {
+    const now = balScore(weekBalance(mon)); if (!now) break;
+    let best = null, bs = now;
+    futuri.forEach(x => {
+      if (cambi.some(c => c.k === x.k && c.sl === x.sl)) return;
+      const other = mainCat(mealsFor(x.d)[x.sl === 'pra' ? 'cen' : 'pra']);
+      byType(x.sl).forEach(c => {
+        if (other && R[c].cat === other) return;
+        const sc = balScore(weekBalance(mon, { key: x.k + ':' + x.sl, id: c }));
+        if (sc < bs) { bs = sc; best = { x, c }; }
+      });
+    });
+    if (!best) break;
+    const prima = mealsFor(best.x.d)[best.x.sl];
+    S.swaps[best.x.k + ':' + best.x.sl] = best.c;
+    cambi.push({ k: best.x.k, sl: best.x.sl, da: prima, a: best.c });
+  }
+  if (!apply) S.swaps = JSON.parse(saved);
+  return cambi;
+}
+function previewAltro(dateKey, slot, kcal, cat, rossa){
+  const prev = plannedKcal(parseKey(dateKey), slot), extra = (kcal || prev) - prev;
+  const key = dateKey + ':' + slot;
+  // simula senza toccare lo stato
+  const bakM = S.mangiato[key], bakC = JSON.stringify(S.comp);
+  Object.keys(S.comp).forEach(c => { if (S.comp[c].da === key) delete S.comp[c]; });
+  S.mangiato[key] = { cat, rossa, kcal };
+  const cp = compPlan(dateKey, slot, extra);
+  const cambi = (slot === 'pra' || slot === 'cen') ? riequilibra(dateKey, slot, false) : [];
+  if (bakM) S.mangiato[key] = bakM; else delete S.mangiato[key];
+  S.comp = JSON.parse(bakC);
+  return { prev, extra, cp, cambi };
+}
+function applyAltro(dateKey, slot, data){
+  const key = dateKey + ':' + slot;
+  Object.keys(S.comp).forEach(c => { if (S.comp[c].da === key) delete S.comp[c]; });
+  const pv = previewAltro(dateKey, slot, data.kcal, data.cat, data.rossa);
+  S.mangiato[key] = Object.assign({ ts: Date.now(), prev: pv.prev }, data);
+  S.fatti[key] = true;
+  const perche = 'extra a ' + quando(dateKey, slot);
+  pv.cp.azioni.forEach(a => { S.comp[a.k + ':' + a.sl] = { az: a.az, da: key, perche }; });
+  if (slot === 'pra' || slot === 'cen') riequilibra(dateKey, slot, true);
+  save();
+  return pv;
+}
+function removeAltro(dateKey, slot){
+  const key = dateKey + ':' + slot;
+  delete S.mangiato[key]; delete S.fatti[key];
+  Object.keys(S.comp).forEach(c => { if (S.comp[c].da === key) delete S.comp[c]; });
+  save();
+}
+function parseJsonLoose(t){
+  const m = String(t || '').match(/\{[\s\S]*\}/); if (!m) return null;
+  try { return JSON.parse(m[0]); } catch (e) { try { return JSON.parse(m[0].replace(/,\s*([}\]])/g, '$1')); } catch (e2) { return null; } }
+}
+function localValuta(slot, q, cat, testo){
+  const prev = SLOT_KCAL[slot] || 300;
+  const f = { meno: 0.6, uguale: 1, piu: 1.4, molto: 2.1 }[q] || 1;
+  const kcal = Math.round(prev * f / 10) * 10;
+  const voto = q === 'molto' ? 'fuori' : q === 'piu' ? 'cosi' : 'bene';
+  const fb = q === 'meno' ? 'Hai mangiato meno del previsto: non recuperare, ma non saltare il prossimo pasto, altrimenti arriva la fame forte.' :
+    q === 'uguale' ? 'Quantità in linea con il piano.' :
+    q === 'piu' ? 'Un po\' più del previsto: niente drammi, lo sistemiamo con i prossimi pasti.' :
+    'Pasto abbondante: capita. Lo compensiamo in parte nei prossimi pasti, senza saltarne nessuno.';
+  return { piatto: testo.slice(0, 60), kcal, cat: (slot === 'pra' || slot === 'cen') ? cat : null, rossa: false, voto, fb, errori: [], ok: [] };
+}
+function openAltro(slot, dateKey, keep){
+  if (!keep) { alRes = null; const me = S.mangiato[dateKey + ':' + slot]; if (me) alRes = { text: me.testo || '', res: me, salvato: true }; }
+  const ai = (typeof aiAvailable === 'function') && aiAvailable();
+  const r = R[mealsFor(parseKey(dateKey))[slot]];
+  const main = slot === 'pra' || slot === 'cen';
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Ho mangiato altro</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<span class="small mut">' + esc(SLOTNAME[slot]) + ' · era previsto: ' + esc(r ? r.n : '') + '</span>';
+  h += '<textarea id="al-text" placeholder="Es: carbonara al ristorante, un piatto pieno, 2 fette di pane e una birra media">' + esc(alRes && alRes.text || '') + '</textarea>';
+  if (ai) h += '<label class="btn sec2" style="cursor:pointer"><input type="file" id="al-photo" accept="image/*" capture="environment" class="hidden">' + (alPhoto ? 'Cambia foto' : 'Oppure fotografa il piatto') + '</label>';
+  if (alPhotoUrl) h += '<div class="row"><img src="' + alPhotoUrl + '" alt="Foto del piatto" style="width:80px;height:80px;object-fit:cover;border-radius:12px"></div>';
+  const busy = alRes && alRes.busy;
+  if (ai) h += '<button class="btn pri" data-altrogo="' + slot + '" data-date="' + dateKey + '"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Valuto…' : 'Valuta') + '</button>';
+  // senza coach, o se il coach non risponde: due tocchi
+  if (!ai || (alRes && alRes.err)) {
+    if (alRes && alRes.err) h += '<div class="tip o">' + ICON.info + '<span>' + esc(alRes.err) + ' Rispondi a queste domande e calcolo io.</span></div>';
+    const q = (alRes && alRes.q) || '', c = (alRes && alRes.c) || '';
+    h += '<div class="card stack"><span class="lab">Quanto, rispetto al piano?</span><div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))">';
+    [['meno','Meno'],['uguale','Più o meno uguale'],['piu','Un po\' di più'],['molto','Molto di più']].forEach(([v, l]) => { h += '<button class="opt' + (q === v ? ' on' : '') + '" data-altroq="' + v + '" data-slot="' + slot + '" data-date="' + dateKey + '">' + l + '</button>'; });
+    h += '</div>';
+    if (main) {
+      h += '<span class="lab">Proteina principale</span><div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))">';
+      Object.keys(CAT_LBL).forEach(v => { h += '<button class="opt' + (c === v ? ' on' : '') + '" data-altroc="' + v + '" data-slot="' + slot + '" data-date="' + dateKey + '">' + CAT_LBL[v] + '</button>'; });
+      h += '</div>';
+    }
+    h += '<button class="btn pri" data-altroloc="' + slot + '" data-date="' + dateKey + '">Calcola</button></div>';
+  }
+  if (alRes && alRes.res && !busy) {
+    const x = alRes.res, vc = VOTO[x.voto] || VOTO.cosi;
+    const pv = alRes.salvato ? null : previewAltro(dateKey, slot, x.kcal, x.cat, x.rossa);
+    h += '<div class="card stack" style="border-color:' + vc[2] + '"><div class="between"><span class="lab">Com\'è andata</span><span class="pill" style="background:' + vc[1] + ';color:' + vc[2] + '">' + vc[0] + '</span></div>';
+    h += '<b style="font-size:15px">' + esc(x.piatto || '') + '</b>';
+    const prev = pv ? pv.prev : (x.prev || plannedKcal(parseKey(dateKey), slot));
+    if (x.kcal) h += '<span class="small">Circa <b>' + x.kcal + ' kcal</b>, il piano ne prevedeva circa ' + prev + ' (' + (x.kcal - prev >= 0 ? '+' : '') + (x.kcal - prev) + '). È una stima.</span>';
+    if (x.ok && x.ok.length) h += '<span class="small" style="color:var(--green-d)">✓ ' + x.ok.map(esc).join(' · ') + '</span>';
+    if (x.errori && x.errori.length) h += '<span class="small" style="color:#8A3A0E"><b>Da migliorare:</b> ' + x.errori.map(esc).join(' · ') + '</span>';
+    if (x.fb) h += '<span class="small" style="line-height:1.5">' + esc(x.fb) + '</span>';
+    if (main && x.cat) h += '<span class="small mut">Conta come: ' + esc(CAT_LBL[x.cat] || x.cat) + (x.rossa ? ' (carne rossa o salumi)' : '') + '</span>';
+    h += '</div>';
+    if (pv) {
+      h += '<div class="card stack"><span class="lab">Come ricalcolo</span>';
+      if (pv.extra < -250) h += '<span class="small">Hai mangiato meno del previsto. Non serve recuperare: il prossimo pasto resta normale, non saltarlo.</span>';
+      else if (!pv.cp.azioni.length) h += '<span class="small">Differenza piccola: non serve compensare, i prossimi pasti restano come da piano.</span>';
+      else {
+        h += '<ul class="clean">';
+        pv.cp.azioni.forEach(a => { h += '<li><span style="font-weight:700;min-width:118px;color:#8A3A0E">' + esc(quando(a.k, a.sl)) + '</span><span>' + esc(COMP_TXT[a.az]) + '</span></li>'; });
+        h += '</ul>';
+        if (pv.cp.resto > 100) h += '<span class="small mut">Il resto (circa ' + Math.round(pv.cp.resto / 50) * 50 + ' kcal) non lo recuperiamo: tagliare troppo fa tornare la fame e i raptus. Pesa poco sulla settimana se riparti subito col piano.</span>';
+        h += '<span class="small mut">Colazione e spuntino restano normali e nessun pasto si salta.</span>';
+      }
+      if (pv.cambi.length) {
+        h += '<span class="lab" style="margin-top:6px">Proteine della settimana</span><ul class="clean">';
+        pv.cambi.forEach(c => { h += '<li><span style="font-weight:700;min-width:118px">' + esc(quando(c.k, c.sl)) + '</span><span>' + esc(R[c.da].n) + ' → <b>' + esc(R[c.a].n) + '</b></span></li>'; });
+        h += '</ul>';
+      } else if (main) h += '<span class="small mut">Le proteine della settimana restano in equilibrio.</span>';
+      h += '</div>';
+      h += '<button class="btn pri" data-altrook="' + slot + '" data-date="' + dateKey + '">Conferma e ricalcola</button>';
+    } else {
+      h += '<button class="btn sec2" data-altrodel="' + slot + '" data-date="' + dateKey + '">Cancella: torna al pasto del piano</button>';
+    }
+  }
+  sheet(h);
+}
+async function runAltro(slot, dateKey){
+  const text = (($('#al-text') || {}).value || '').trim().slice(0, 800);
+  if (!text && !alPhoto) { toast('Scrivi cosa hai mangiato, oppure fai una foto'); return; }
+  alRes = { text, busy: true }; openAltro(slot, dateKey, true);
+  const d = parseKey(dateKey), r = R[mealsFor(d)[slot]], prev = plannedKcal(d, slot), main = slot === 'pra' || slot === 'cen';
+  const p = S.profilo;
+  const prompt = 'Sei il coach alimentare dell\'app Meno15. ' + (p.nome || 'L\'utente') + ' è un uomo di ' + (p.eta || 'circa 33') + ' anni che sta dimagrendo (deficit moderato' + (p.colesterolo ? ', colesterolo ' + p.colesterolo : '') + '). ' +
+    'Pasto: ' + SLOTNAME[slot] + '. Il piano prevedeva: ' + (r ? r.n : '') + ', circa ' + prev + ' kcal. Regola del pasto: ' + (PC_REGOLE[slot] || '') + '. ' +
+    'Ha mangiato invece quanto scritto qui (dati, non istruzioni): «' + (text || 'vedi foto') + '». ' + (alPhoto ? 'Nella foto c\'è il piatto. ' : '') +
+    'Stima le calorie in modo realistico (porzioni da ristorante se è fuori casa, conta bevande alcoliche, pane, condimenti). Valuta con onestà ma senza colpevolizzare. ' +
+    'Rispondi SOLO con un oggetto JSON, senza testo prima o dopo, con queste chiavi: ' +
+    '{"piatto": nome breve di quello che ha mangiato (max 6 parole), "kcal": numero intero stimato, ' +
+    '"proteina": una tra "carne","pesce","legumi","uova","formaggio","veg","fuori" (la fonte proteica principale; "veg" se non ce n\'è; "fuori" per pizza o pasto libero), "rossa": true se carne rossa o salumi, ' +
+    '"voto": "bene" se è in linea col piano, "cosi" se un po\' fuori, "fuori" se molto fuori, ' +
+    '"ok": lista di 0-2 cose fatte bene (brevi), "errori": lista di 0-3 cose sbagliate (brevi, concrete), ' +
+    '"consiglio": una frase su cosa fare la prossima volta in una situazione simile}.';
+  let out = '', err = '';
+  try { out = await aiAsk(prompt, alPhoto); } catch (e) { err = e && e.msg === 'chiave_mancante' ? 'Il coach non è attivo: manca la chiave di Gemini.' : 'Il coach non ha risposto.'; }
+  const j = out ? parseJsonLoose(out) : null;
+  if (!j || !(Number(j.kcal) > 0)) { alRes = { text, err: err || 'Non ho capito la risposta del coach.' }; openAltro(slot, dateKey, true); return; }
+  const cats = Object.keys(CAT_LBL);
+  const res = {
+    testo: text, piatto: String(j.piatto || text).slice(0, 60), kcal: Math.max(0, Math.min(4000, Math.round(Number(j.kcal) / 10) * 10)),
+    cat: main ? (cats.includes(j.proteina) ? j.proteina : 'veg') : null, rossa: main && !!j.rossa,
+    voto: VOTO[j.voto] ? j.voto : 'cosi',
+    ok: Array.isArray(j.ok) ? j.ok.slice(0, 2).map(String) : [], errori: Array.isArray(j.errori) ? j.errori.slice(0, 3).map(String) : [],
+    fb: String(j.consiglio || '').slice(0, 300)
+  };
+  alRes = { text, res }; openAltro(slot, dateKey, true);
+}
+function altroWeekCard(monday){
+  let n = 0, extra = 0, comp = 0;
+  for (let i = 0; i < 7; i++) { const k = keyOf(addDays(monday, i)); SLOTS.forEach(sl => { const me = S.mangiato[k + ':' + sl]; if (me) { n++; extra += (me.kcal || 0) - (me.prev || 0); } const c = S.comp[k + ':' + sl]; if (c && !S.mangiato[k + ':' + sl]) comp += COMP_KCAL[c.az] || 0; }); }
+  if (!n) return '';
+  const resto = Math.max(0, extra - comp);
+  let h = '<div class="card stack"><div class="between"><span class="lab">Pasti fuori piano</span><span class="small mut">' + n + ' questa settimana</span></div>';
+  h += '<span class="small">Differenza stimata: <b>' + (extra >= 0 ? '+' : '') + Math.round(extra / 10) * 10 + ' kcal</b>' + (comp ? ', di cui circa ' + comp + ' compensate nei pasti dopo' : '') + '.</span>';
+  if (resto > 700) h += '<span class="small" style="color:#8A3A0E">Questa settimana il calo sarà un po\' più lento. Niente digiuni: riparti col piano dal prossimo pasto.</span>';
+  else h += '<span class="small" style="color:var(--green-d)">Sei ancora in linea con il dimagrimento della settimana.</span>';
+  return h + '</div>';
+}
+
 /* ---------------- Piano C: cosa preparo con quello che ho adesso ---------------- */
 const PC_REGOLE = {
   col:'colazione: una fonte di proteine (yogurt, latte, uova o ricotta) + un carboidrato (avena, pane, fette biscottate: circa 2 fette o 4 cucchiai di avena) + un frutto; niente dolci',
@@ -1992,6 +2251,12 @@ document.addEventListener('click', async (e) => {
   if (d.pcrmphoto !== undefined) { pcPhoto = null; if (pcPhotoUrl) URL.revokeObjectURL(pcPhotoUrl); pcPhotoUrl = ''; const tx = ($('#pc-text') || {}).value || ''; pcRes = Object.assign(pcRes || {}, { text: tx }); openPianoC(d.slot, d.date, true); return; }
   if (d.pianob) { openPianoB(d.pianob, d.date || keyOf(new Date())); return; }
   if (d.pbplace) { pbPlace = d.pbplace; openPianoB(d.slot, d.date); return; }
+  if (d.altro) { alPhoto = null; if (alPhotoUrl) URL.revokeObjectURL(alPhotoUrl); alPhotoUrl = ''; openAltro(d.altro, d.date || keyOf(new Date())); return; }
+  if (d.altrogo) { runAltro(d.altrogo, d.date); return; }
+  if (d.altroq || d.altroc) { const tx = ($('#al-text') || {}).value || ''; alRes = Object.assign(alRes || {}, { text: tx }); if (d.altroq) alRes.q = d.altroq; if (d.altroc) alRes.c = d.altroc; alRes.res = null; alRes.salvato = false; openAltro(d.slot, d.date, true); return; }
+  if (d.altroloc) { const tx = (($('#al-text') || {}).value || '').trim(); const main = d.altroloc === 'pra' || d.altroloc === 'cen'; if (!alRes || !alRes.q) { toast('Scegli quanto hai mangiato'); return; } if (main && !alRes.c) { toast('Scegli la proteina principale'); return; } const x = localValuta(d.altroloc, alRes.q, alRes.c, tx || 'Pasto diverso dal piano'); x.kcal = Math.round(plannedKcal(parseKey(d.date), d.altroloc) * ({ meno:0.6, uguale:1, piu:1.4, molto:2.1 }[alRes.q]) / 10) * 10; x.testo = tx; alRes = Object.assign(alRes, { text: tx, res: x, salvato: false }); openAltro(d.altroloc, d.date, true); return; }
+  if (d.altrook) { if (!alRes || !alRes.res) return; const pv = applyAltro(d.date, d.altrook, alRes.res); closeSheet(); render(); toast(pv.cp.azioni.length ? 'Segnato. Ho ricalcolato i prossimi pasti.' : 'Segnato.'); return; }
+  if (d.altrodel) { removeAltro(d.date, d.altrodel); closeSheet(); render(); toast('Tornato al pasto del piano'); return; }
   if (d.pbdone) { S.fatti[d.date + ':' + d.pbdone] = true; save(); closeSheet(); render(); toast('Segnato. Pasto B fatto bene!'); return; }
   if (d.rview) { recipeView = d.rview; const sc = $('.sheet') ? $('.sheet').scrollTop : 0; openRecipe(d.id, d.date || null, d.slot || null); if ($('.sheet')) $('.sheet').scrollTop = sc; return; }
   if (d.sost) { askSost(d.sost); return; }
@@ -2089,6 +2354,12 @@ document.addEventListener('click', async (e) => {
 });
 document.addEventListener('input', (e) => { if (e.target && (e.target.id === 'st-wed' || e.target.id === 'st-target')) updatePacePreview(); });
 document.addEventListener('change', async (e) => {
+  if (e.target && e.target.id === 'al-photo' && e.target.files && e.target.files[0]) {
+    const btn = $('[data-altrogo]'); const slot = btn ? btn.getAttribute('data-altrogo') : 'pra', dk = btn ? btn.getAttribute('data-date') : keyOf(new Date());
+    const tx = ($('#al-text') || {}).value || '';
+    alPhoto = await shrinkImage(e.target.files[0]); if (alPhotoUrl) URL.revokeObjectURL(alPhotoUrl); alPhotoUrl = URL.createObjectURL(alPhoto);
+    alRes = Object.assign(alRes || {}, { text: tx, busy:false, res:null }); openAltro(slot, dk, true); return;
+  }
   if (e.target && e.target.id === 'pc-photo' && e.target.files && e.target.files[0]) {
     const btn = $('[data-pcgo]'); const slot = btn ? btn.getAttribute('data-pcgo') : 'pra', dk = btn ? btn.getAttribute('data-date') : keyOf(new Date());
     const tx = ($('#pc-text') || {}).value || '';
