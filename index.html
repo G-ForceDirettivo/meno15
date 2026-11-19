@@ -257,6 +257,21 @@ const R = {
   d13:{t:'cen',cat:'veg',sg:'si',n:'Risotto veloce zucca e grana',min:25,i:[['Riso Carnaroli','6 cucchiai da crudo','di'],['Zucca a cubetti (anche surgelata)','2 mani','su'],['Brodo vegetale (dado senza glutine)','1/2 litro','di'],['Grana','1 cucchiaio','lu'],['Olio extravergine','1 cucchiaino','di']],p:['Zucca in pentola con un filo d\'olio, poi il riso.','Brodo poco alla volta per 16-18 minuti.','Manteca con il grana, niente burro.'],gf:'Controlla che il dado riporti la spiga barrata.'},
   d14:{t:'cen',cat:'pesce',sg:'adatta',n:'Pasta con zucchine e gamberetti',min:20,i:[['Pasta corta','1 pugno da crudo','di'],['Gamberetti surgelati','1 palmo','su'],['Zucchine','2','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Zucchine a cubetti in padella 6 minuti, poi i gamberetti 3 minuti.','Salta la pasta nel condimento.'],gf:'Per lei: pasta senza glutine in pentola separata.'},
   d15:{t:'cen',cat:'carne',sg:'si',n:'Tagliata di manzo, rucola e patate',min:20,i:[['Manzo magro (controfiletto o fesa)','1 palmo','cp'],['Rucola e pomodorini','2 mani','fv'],['Patate','1 media','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Piastra rovente, 3 minuti per lato.','Affetta su rucola e pomodorini.'],tip:'Carne rossa: massimo una volta a settimana, per il colesterolo.'},
+  /* VELOCI (massimo 15 minuti, pochi ingredienti, scorciatoie da supermercato) */
+  w1:{t:'pra',cat:'legumi',n:'Insalata di ceci, pomodorini e feta',min:10,i:[['Ceci in scatola','1 barattolo piccolo (scolato)','di'],['Pomodorini','2 mani','fv'],['Feta','1 cubetto (come 1 pollice)','lu'],['Pane integrale','1 fetta','pa'],['Olio extravergine','1 cucchiaio','di']],p:['Sciacqua i ceci sotto l\'acqua.','Aggiungi pomodorini a metà, feta sbriciolata, olio e origano.','Si prepara la sera e si porta in un barattolo.'],tip:'Zero fornelli: solo apri, taglia e mescola.'},
+  w2:{t:'pra',cat:'legumi',n:'Riso pronto con lenticchie e zucchine',min:12,i:[['Riso integrale precotto in busta','mezza busta (come un pugno)','di'],['Lenticchie in scatola','1 barattolo piccolo (scolato)','di'],['Zucchine','1','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Zucchine a cubetti in padella 5 minuti.','Aggiungi riso e lenticchie scolate, 2 minuti a fuoco vivo.','Olio a crudo alla fine.'],tip:'Il riso in busta si scalda in padella: niente microonde.'},
+  w3:{t:'pra',cat:'pesce',n:'Farro pronto con tonno e pomodorini',min:10,i:[['Farro precotto','mezza busta (come un pugno)','di'],['Tonno al naturale','1 scatoletta','di'],['Pomodorini','2 mani','fv'],['Rucola','1 mano','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Sgrana il farro in una ciotola.','Unisci tonno scolato, pomodorini, rucola e olio.'],tip:'Il farro precotto si mangia anche freddo.'},
+  w4:{t:'pra',cat:'carne',n:'Panino con fesa di tacchino e verdure',min:5,i:[['Panino integrale','1 medio','pa'],['Fesa di tacchino a fette','5-6 fette','cp'],['Pomodoro','1','fv'],['Insalata','1 mano','fv'],['Frutto','1','fv']],p:['Farcisci il panino con tacchino, pomodoro e insalata.','Un frutto e il pranzo è fatto.'],tip:'Fesa di tacchino al naturale, non arrosto con aromi e sale aggiunti.'},
+  w5:{t:'pra',cat:'uova',n:'Uova sode, pane e verdure crude',min:12,i:[['Uova','2','lu'],['Pane integrale','2 fette','pa'],['Carote, finocchi o pomodori','2 mani','fv'],['Olio extravergine','1 cucchiaino','di']],p:['Uova in acqua bollente 9 minuti, poi sotto l\'acqua fredda.','Verdure a bastoncini, un filo d\'olio e sale.'],tip:'Puoi fare le uova sode per 2 giorni insieme: in frigo durano 5 giorni con il guscio.'},
+  w6:{t:'pra',cat:'carne',n:'Insalatona con pollo già cotto e mais',min:5,i:[['Petto di pollo grigliato già pronto','1 palmo','cp'],['Insalata mista','2 mani','fv'],['Mais in scatola','2 cucchiai','di'],['Pane integrale','1 fetta e mezza','pa'],['Olio extravergine','1 cucchiaio','di']],p:['Taglia il pollo a striscioline.','Insalata, mais, olio e limone: fatto.'],tip:'Il pollo grigliato già pronto lo trovi al banco frigo del supermercato.'},
+  w11:{t:'cen',cat:'carne',sg:'adatta',n:'Petto di pollo in padella, insalata e pane',min:15,i:[['Petto di pollo a fette','1 palmo','cp'],['Insalata e pomodori','2 mani','fv'],['Pane integrale','1 fetta e mezza','pa'],['Olio extravergine','1 cucchiaio','di']],p:['Padella antiaderente ben calda, 3-4 minuti per lato.','Limone, rosmarino o paprika: niente panatura.','Insalata con l\'olio e pane.'],gf:'Per lei: pane senza glutine.'},
+  w12:{t:'cen',cat:'carne',sg:'adatta',n:'Fettine di tacchino al limone e spinaci',min:15,i:[['Fettine di tacchino','1 palmo','cp'],['Spinaci surgelati','2 mani','su'],['Pane integrale','1 fetta e mezza','pa'],['Olio extravergine','1 cucchiaio','di']],p:['Spinaci in padella con un dito d\'acqua, 8 minuti.','Tacchino in padella 2 minuti per lato, alla fine il succo di mezzo limone.'],gf:'Per lei: pane senza glutine. Niente farina sulle fettine.'},
+  w13:{t:'cen',cat:'legumi',sg:'adatta',n:'Lenticchie in umido veloci e pane',min:15,i:[['Lenticchie in scatola','1 barattolo (scolato)','di'],['Passata di pomodoro','4 cucchiai','di'],['Carota o cipolla','1','fv'],['Pane integrale','1 fetta e mezza','pa'],['Olio extravergine','1 cucchiaio','di']],p:['Carota o cipolla tritata in padella con poca acqua.','Aggiungi passata e lenticchie, 10 minuti.','Olio a crudo e pane.'],gf:'Per lei: pane senza glutine.'},
+  w14:{t:'cen',cat:'legumi',sg:'adatta',n:'Pasta e ceci veloce',min:15,i:[['Pasta corta integrale','1 pugno da cruda','di'],['Ceci in scatola','mezzo barattolo (scolato)','di'],['Aglio e rosmarino','q.b.','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Cuoci la pasta.','Intanto in padella ceci con aglio, rosmarino e un mestolo d\'acqua della pasta: schiacciane metà.','Unisci la pasta e l\'olio a crudo.'],gf:'Per lei: pasta senza glutine cotta a parte.'},
+  w15:{t:'cen',cat:'pesce',sg:'adatta',n:'Salmone in padella, zucchine e pane',min:15,i:[['Salmone (anche surgelato)','1 palmo','cp'],['Zucchine','2','fv'],['Pane integrale','1 fetta','pa'],['Olio extravergine','1 cucchiaino','di']],p:['Zucchine a rondelle in padella 6 minuti.','Salmone dalla parte della pelle 5 minuti, girato 2.','Il salmone è già grasso: basta un cucchiaino d\'olio.'],gf:'Per lei: pane senza glutine.'},
+  w16:{t:'cen',cat:'pesce',sg:'adatta',n:'Merluzzo surgelato con fagiolini e pane',min:15,i:[['Filetti di merluzzo surgelati','1 palmo e mezzo','su'],['Fagiolini surgelati','2 mani','su'],['Pane integrale','1 fetta e mezza','pa'],['Olio extravergine','1 cucchiaio','di']],p:['Fagiolini in acqua bollente 8 minuti.','Merluzzo in padella con coperchio e mezzo bicchiere d\'acqua, 8 minuti.','Olio, limone e prezzemolo.'],gf:'Per lei: pane senza glutine. Filetti al naturale, non impanati.'},
+  w17:{t:'cen',cat:'uova',sg:'adatta',n:'Uova al tegamino con spinaci e pane',min:10,i:[['Uova','2','lu'],['Spinaci surgelati','2 mani','su'],['Pane integrale','1 fetta e mezza','pa'],['Olio extravergine','1 cucchiaino','di']],p:['Spinaci in padella 6 minuti.','Fai 2 spazi e rompi le uova, coperchio, 3 minuti.'],gf:'Per lei: pane senza glutine.'},
+  w18:{t:'cen',cat:'pesce',sg:'adatta',n:'Pasta tonno e zucchine',min:15,i:[['Pasta corta integrale','1 pugno da cruda','di'],['Tonno al naturale','1 scatoletta','di'],['Zucchine','1','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Cuoci la pasta.','Intanto zucchine a cubetti in padella 6 minuti, poi il tonno.','Salta la pasta nel condimento con l\'olio.'],gf:'Per lei: pasta senza glutine cotta a parte.'},
   ffe:{t:'fes',cat:'festa',n:'Il pasto di festa',min:0,i:[],p:['Antipasti: un piattino con un assaggio di ciò che ti piace di più, non il giro completo.','Primo e secondo: uno dei due pieno, dell\'altro solo un assaggio.','Contorni e verdure quanti ne vuoi; pane un pezzo.','Dolce: una fetta di panettone o pandoro, oppure 2-3 dolcetti. Non tutti e due.','Vino o spumante: 2 calici al massimo, con un bicchiere d\'acqua tra uno e l\'altro.','Frutta secca e torrone: una manciata, poi allontana la ciotola.'],tip:'Mangia con calma e goditela: un pasto di festa non rovina niente. Contano i giorni normali in mezzo.'},
   fle:{t:'leg',cat:'veg',sg:'si',n:'Pasto leggero (dopo o prima della festa)',min:15,i:[['Minestrone o brodo di verdure','2 mani','su'],['Uova sode o pesce bianco','2 uova / 1 palmo','lu'],['Verdure cotte o insalata','2 mani','fv'],['Olio extravergine','1 cucchiaio','di']],p:['Minestrone o brodo caldo: riempie e sgonfia.','Aggiungi le uova o il pesce e una porzione di verdure.','Niente pane, niente avanzi dolci.'],tip:'Non è digiuno: è il pasto che bilancia quello di festa.'},
   dpz:{t:'cen',cat:'pizza',sg:'no',n:'Pizza e birra',min:0,i:[],p:['1 pizza (margherita, marinara, ortolana, diavola o prosciutto vanno bene).','1 birra media. La seconda no.','Evita doppia mozzarella e fritti in aggiunta.'],tip:'È nel piano: goditela senza sensi di colpa.'}
@@ -287,6 +302,9 @@ const DEFAULT = {
   notif:{},           // categoria -> false se spenta
   notifOn:false,
   pushPlan:[],        // notifiche programmate (le invia il server)
+  porz:0,             // porzioni automatiche: -1, 0, +1, +2
+  adatta:[],          // storico valutazioni {d, calo, da, a, motivo}
+  listaTok:'',        // link della lista della spesa condivisa
   stress:[],
   bevande:{},
   pref:{},
@@ -325,7 +343,7 @@ function sbInit(){
   try { sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'meno15-auth' } }); } catch (e) { sb = null; return; }
   sb.auth.getSession().then(({ data }) => { sbUser = data && data.session ? data.session.user : null; if (sbUser) sbPull(); else render(); }).catch(() => {});
   sb.auth.onAuthStateChange((ev, session) => { sbUser = session ? session.user : null; });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sbUser) { sbPull(); if (S.notifOn) setTimeout(sbSchedule, 4000); } });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sbUser) { sbPull(); if (S.notifOn) setTimeout(sbSchedule, 4000); if (S.listaTok) setTimeout(() => listaCarica(keyOf(mondayOf(new Date()))), 5000); } });
   setTimeout(() => { if (sbUser && S.notifOn) sbSchedule(); }, 6000);
 }
 async function sbPull(){
@@ -503,10 +521,12 @@ function weekBalance(monday, ov){
   return { cnt, rossa, n };
 }
 function balScore(b){ let v = 0; BAL.forEach(x => { const c = b.cnt[x.c] || 0; if (c < x.min) v += x.min - c; if (c > x.max) v += c - x.max; }); if (b.rossa > 1) v += b.rossa - 1; return v; }
+function semplici(){ return S.profilo.semplici !== false; }
+function poolT(t){ const all = byType(t); if (!semplici() || (t !== 'pra' && t !== 'cen')) return all; const q = all.filter(k => (R[k].min || 0) <= 15); return q.length >= 6 ? q : all; }
 function spmPool(){ const all = byType('spm'), p = SPM_PROT.filter(k => all.includes(k)); return p.concat(all.filter(k => !p.includes(k))); }
 function merPool(){ const all = byType('mer'), p = MER_SAZ.filter(k => all.includes(k)); return p.length >= 2 ? p : all; }
 function basePlan(monday){
-  const mk = keyOf(monday) + '|' + pizzaDayFor(monday) + '|' + Object.keys(S.escl || {}).sort().join(',') + '|' + Object.keys(S.pref || {}).sort().join(',');
+  const mk = keyOf(monday) + '|' + pizzaDayFor(monday) + '|' + Object.keys(S.escl || {}).sort().join(',') + '|' + Object.keys(S.pref || {}).sort().join(',') + '|' + (semplici() ? 'q' : '');
   if (planCache[mk]) return planCache[mk];
   const w = weekIndex(monday), seed = 1000 + w * 7919;
   const pz = pizzaDayFor(monday);
@@ -530,7 +550,7 @@ function basePlan(monday){
     if (!pr) pr = praCats;
     const used = new Set(); let rossa = 0;
     const pick = (type, cat, sd) => {
-      const all = byType(type);
+      const all = poolT(type);
       let list = all.filter(k => cat === 'leggero' ? ['uova','formaggio','veg'].includes(R[k].cat) : R[k].cat === cat);
       if (!list.length) list = all;
       list = favFirst(list, sd);
@@ -580,7 +600,7 @@ function weekUsed(monday){
   return set;
 }
 function balancedPick(date, slot, cur, used){
-  const k = keyOf(date), monday = mondayOf(date), pool = byType(slot === 'pra' ? 'pra' : 'cen');
+  const k = keyOf(date), monday = mondayOf(date), pool = poolT(slot === 'pra' ? 'pra' : 'cen');
   const now = balScore(weekBalance(monday));
   const oc = mainCat(mealsFor(date)[slot === 'pra' ? 'cen' : 'pra']), cc = R[cur] ? R[cur].cat : null;
   const start = pool.indexOf(cur);
@@ -670,6 +690,7 @@ const MANT_STEPS = [
 ];
 function extraLines(date, slot){
   const lines = [];
+  const pl = porzLine(date, slot); if (pl) lines.push(pl);
   const cp = S.comp && S.comp[keyOf(date) + ':' + slot];
   if (cp && !(S.mangiato && S.mangiato[keyOf(date) + ':' + slot])) lines.push('Compensa: ' + COMP_TXT[cp.az] + ' (' + cp.perche + ')');
   if (slot === 'spu') lines.push('Spuntino proteico leggero (circa 80-100 kcal): è già dentro il piano e serve ad arrivare a pranzo senza fame. Se a metà mattina non hai fame, saltalo e non recuperarlo dopo.');
@@ -740,27 +761,43 @@ function viewOggi(){
   h += '<div class="seg seg5" style="grid-template-columns:repeat(5,minmax(0,1fr))" aria-label="Turno di oggi">';
   Object.keys(TURNI).forEach(t => { h += '<button class="opt' + (turnoOf(today) === t ? ' on' : '') + '" data-turno="' + t + '" data-day="' + k + '">' + TURNI[t].l + '</button>'; });
   h += '</div>';
+  h += '<button class="linkbtn" data-turni="' + keyOf(mondayOf(today)) + '" style="align-self:flex-end;margin-top:-8px">Imposta i turni della settimana →</button>';
+  const ieri = keyOf(addDays(today, -1));
+  if (p.inizio && ieri >= p.inizio && !S.cele['ieri:' + ieri] && !activeSlots().some(x => S.fatti[ieri + ':' + x] || S.mangiato[ieri + ':' + x]))
+    h += '<div class="card stack" style="border-color:#E0A43A"><span style="font-size:14px"><b>Ieri non hai segnato i pasti.</b> Hai seguito il piano?</span><div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt on" data-tuttook="' + ieri + '">Sì, segna tutto</button><button class="opt" data-ierino="' + ieri + '">No, lascia così</button></div></div>';
+  h += cholTip();
   h += sfidaCard();
   h += '<div class="sec"><h2>Cosa mangi oggi</h2><span class="small mut">tocca per la ricetta</span></div>';
   h += mealCards(today);
+  const nonSegnati = activeSlots().filter(x => x !== 'ser' && !S.fatti[k + ':' + x]);
+  if (nonSegnati.length >= 2 && today.getHours() >= 12) h += '<button class="btn sec2" data-tuttook="' + k + '">✓ Ho seguito il piano oggi: segna tutti i pasti</button>';
   if (i === 6 || i === 0) h += '<button class="card meal" data-riep="' + (i === 0 ? -1 : 0) + '" style="border-color:#E0A43A"><span class="lab">' + (i === 0 ? 'La settimana appena finita' : 'Fine settimana') + '</span><span class="dish">Guarda il tuo riepilogo</span><span class="small mut">Peso, pasti, acqua, raptus e un consiglio per la prossima settimana</span></button>';
   if (pool) h += trainingCard(today);
   h += drinkCard(k);
-  h += panciaCard(k);
   const tom = addDays(today, 1), mt = mealsFor(tom);
   h += '<div class="card stack" style="border:1.5px dashed #C9D3CD;box-shadow:none;background:transparent"><span class="lab">Stasera prepara</span><button class="meal" style="background:none;padding:0" data-recipe="' + mt.pra + '" data-date="' + keyOf(tom) + '" data-slot="pra"><span class="dish">' + esc(R[mt.pra].n) + '</span><span class="small mut">Pranzo di ' + GIORNI[dow(tom)].toLowerCase() + (R[mt.pra].min ? ' · ' + R[mt.pra].min + ' minuti' : '') + '</span>' + (availChip(mt.pra) ? '<span class="chips">' + availChip(mt.pra) + '</span>' : '') + '</button><button class="btn sec2 sm" data-noingr="' + keyOf(tom) + '">Non ho gli ingredienti</button></div>';
+  h += panciaCard(k);
   h += festaSeg(k);
   h += '<button class="btn hot" data-go="fame">' + ICON.flame + ' Ho fame adesso</button>';
   return h;
 }
+const aperti = new Set();
 function mealCards(date){
   const k = keyOf(date), meals = mealsFor(date);
+  const nextS = k === keyOf(new Date()) ? activeSlots().find(x => !S.fatti[k + ':' + x] && !(x === 'ser')) : null;
   let h = '<div class="stack" style="gap:10px">';
   activeSlots().forEach(s => {
     const id = meals[s], r = R[id], info = slotInfo(date, s), done = S.fatti[k + ':' + s], ic = SLOTICO[s];
+    if (done && !aperti.has(k + ':' + s)) {
+      const me0 = S.mangiato[k + ':' + s];
+      h += '<div class="card" style="padding:8px 12px;opacity:.8"><div class="mc-head" style="gap:10px"><span class="slotico" style="width:30px;height:30px;background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><button data-apri="' + s + '" data-date="' + k + '" style="all:unset;flex:1;cursor:pointer;min-height:40px;display:flex;align-items:center;gap:6px;overflow:hidden"><b style="font-size:14px;white-space:nowrap">' + SLOTNAME[s] + '</b><span class="small mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(me0 ? (me0.piatto || me0.testo) : r.n) + '</span></button><button class="checkbtn on" data-done="' + s + '" data-date="' + k + '" aria-label="Mangiato, tocca per annullare" aria-pressed="true">' + ICON.check + '</button></div></div>';
+      return;
+    }
     const chips = r.i.slice(0, 4).map(([n, q]) => '<span class="chip ' + chipClass(n) + '">' + esc(q.length < 22 ? q + ' ' + lowFirst(shortName(n)) : shortName(n)) + '</span>').join('');
     const gf = (s === 'cen' && S.profilo.compagnaCeliaca && r.sg) ? (r.sg === 'si' ? '<span class="chip v">Va bene anche per lei</span>' : r.sg === 'adatta' ? '<span class="chip c">Per lei: versione senza glutine</span>' : '') : '';
-    h += '<div class="card mc"' + (done ? ' style="opacity:.62"' : '') + '>';
+    h += '<div class="card mc"' + (done ? ' style="opacity:.62"' : s === nextS ? ' style="border:2px solid var(--green)"' : '') + '>';
+    if (s === nextS) h += '<span class="pill" style="align-self:flex-start;margin-bottom:-4px">Il prossimo</span>';
+    if (done) h += '<button class="linkbtn" data-apri="' + s + '" data-date="' + k + '" style="align-self:flex-end;margin-bottom:-6px">Chiudi</button>';
     h += '<div class="mc-head"><span class="slotico" style="background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><div class="mc-when"><b>' + SLOTNAME[s] + ' · ' + info.time + '</b><span class="small mut">' + esc(info.note || '') + '</span></div>';
     h += '<button class="checkbtn' + (done ? ' on' : '') + '" data-done="' + s + '" data-date="' + k + '" aria-label="' + (done ? 'Mangiato, tocca per annullare' : 'Segna come mangiato') + '" aria-pressed="' + (done ? 'true' : 'false') + '">' + ICON.check + '</button></div>';
     const me = S.mangiato[k + ':' + s];
@@ -981,6 +1018,7 @@ function viewSettimana(){
   h += '<div class="card stack"><div class="between"><span class="lab">Sera della pizza questa settimana</span></div><div class="seg" style="grid-template-columns:repeat(7,minmax(0,1fr))">';
   for (let i = 0; i < 7; i++) h += '<button class="opt' + (i === pz ? ' on or' : '') + '" data-pizza="' + i + '" aria-label="Pizza ' + GIORNI[i] + '">' + GG[i] + '</button>';
   h += '</div><span class="small mut">Quel giorno il pranzo diventa più leggero. Una birra media è compresa.</span></div>';
+  h += '<button class="btn sec2" data-turni="' + keyOf(monday) + '">Turni della settimana</button>';
   h += balanceCard(monday);
   h += altroWeekCard(monday);
   h += '<button class="card meal" data-nutri style="border-color:#9CC3E4"><span class="lab">Guida</span><span class="dish">Mangiare bilanciato</span><span class="small mut">Cosa mangiare ogni giorno e ogni settimana, il semaforo dei cibi, colesterolo e falsi miti</span></button>';
@@ -1451,6 +1489,147 @@ function openSfide(){
   sheet(h);
 }
 
+/* ---------------- Porzioni che si adattano al calo ---------------- */
+function trendKg(giorni){
+  const lim = keyOf(addDays(new Date(), -giorni)), pts = S.pesi.filter(x => x.d >= lim);
+  if (pts.length < 2) return null;
+  const t0 = parseKey(pts[0].d).getTime(), xs = pts.map(x => (parseKey(x.d).getTime() - t0) / (7 * 864e5)), ys = pts.map(x => x.kg);
+  if (xs[xs.length - 1] < 10 / 7) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
+  let num = 0, den = 0; xs.forEach((x, i) => { num += (x - mx) * (ys[i] - my); den += (x - mx) * (x - mx); });
+  return den ? num / den : null;
+}
+function porzLine(date, slot){
+  const lv = S.porz || 0, m = mealsFor(date)[slot];
+  if (!lv || (slot !== 'pra' && slot !== 'cen') || ['dpz','lpz','ffe','fle'].includes(m)) return null;
+  if (lv < 0) return 'Porzioni adattate: 1-2 cucchiai in meno di pasta o riso (o mezza fetta di pane in meno). Verdure libere.';
+  if (slot === 'pra' || lv >= 2) return 'Porzioni adattate: +2 cucchiai di pasta o riso (o +1 fetta di pane).';
+  return null;
+}
+function valutaPorzioni(){
+  if (S.fase === 'mantenimento' || !S.profilo.inizio) return;
+  const oggi = keyOf(new Date());
+  if (oggi < keyOf(addDays(parseKey(S.profilo.inizio), 21))) return;
+  const ult = S.adatta.length ? S.adatta[S.adatta.length - 1].d : null;
+  if (ult && oggi < keyOf(addDays(parseKey(ult), 14))) return;
+  const tr = trendKg(28); if (tr == null) return;
+  const calo = -tr, prima = S.porz || 0;
+  let extra = 0;
+  for (let i = 0; i < 14; i++) { const kk = keyOf(addDays(new Date(), -i)); SLOTS.forEach(sl => { const me = S.mangiato[kk + ':' + sl]; if (me) extra += (me.kcal || 0) - (me.prev || 0); }); }
+  let dopo = prima, motivo;
+  if (calo > 1.2) { dopo = Math.min(2, prima + 1); motivo = dopo > prima ? 'Stai calando ' + fmtKg(calo) + ' kg a settimana, più del ritmo sicuro: un po\' di carboidrati in più, per non perdere muscolo e non avere fame.' : 'Calo veloce (' + fmtKg(calo) + ' kg a settimana), porzioni già al massimo previsto: se hai fame dillo al medico.'; }
+  else if (calo < 0.3) {
+    if (extra > 2000) motivo = 'Calo lento (' + fmtKg(Math.max(0, calo)) + ' kg a settimana), ma dipende dai pasti fuori piano: le porzioni restano uguali. Ripartendo col piano il calo torna.';
+    else { dopo = Math.max(-1, prima - 1); motivo = dopo < prima ? 'Il calo si è fermato (' + fmtKg(Math.max(0, calo)) + ' kg a settimana): riduco di poco i carboidrati di pranzo e cena.' : 'Calo lento, ma le porzioni sono già al minimo sicuro: niente tagli in più. Aggiungi camminate e controlla gli extra.'; }
+  } else motivo = 'Ritmo giusto: ' + fmtKg(calo) + ' kg a settimana. Porzioni invariate.';
+  S.adatta.push({ d: oggi, calo: Math.round(calo * 100) / 100, da: prima, a: dopo, motivo });
+  S.porz = dopo; save();
+  if (dopo !== prima) toast('Porzioni aggiornate in base al tuo calo: i dettagli sono in Progressi.');
+  return dopo !== prima;
+}
+function porzCard(){
+  const lv = S.porz || 0, t = trendKg(28), u = S.adatta[S.adatta.length - 1];
+  let h = '<div class="card stack"><span class="lab">Porzioni automatiche</span>';
+  h += '<span style="font-size:14px">' + (lv === 0 ? 'Porzioni standard del piano.' : lv < 0 ? 'Carboidrati di pranzo e cena leggermente ridotti.' : 'Carboidrati un po\' aumentati' + (lv > 1 ? ' a pranzo e a cena.' : ' a pranzo.')) + '</span>';
+  if (t != null) h += '<span class="small">Tendenza delle ultime 4 settimane: <b>' + (t <= 0 ? '−' : '+') + fmtKg(Math.abs(t)) + ' kg a settimana</b>.</span>';
+  if (u) h += '<span class="small mut">' + fmtDate(parseKey(u.d)) + ': ' + esc(u.motivo) + '</span>';
+  if (u && u.a !== u.da) h += '<button class="linkbtn" data-porzundo style="align-self:flex-start">Annulla questa modifica</button>';
+  h += '<span class="small mut">Dalla terza settimana, ogni 2 settimane l\'app guarda il calo delle pesate: sopra 1,2 kg a settimana aumenta un po\' i carboidrati, sotto 0,3 li riduce di poco. Mai sotto il minimo sicuro.</span>';
+  return h + '</div>';
+}
+function cholDue(){
+  if (!S.profilo.colesterolo || !S.profilo.inizio) return null;
+  const dopo = (S.chol || []).filter(x => x.d > S.profilo.inizio), last = dopo[dopo.length - 1];
+  return keyOf(addDays(parseKey(last ? last.d : S.profilo.inizio), last ? 180 : 90));
+}
+function cholTip(){
+  const due = cholDue(); if (!due) return '';
+  if (keyOf(new Date()) < keyOf(addDays(parseKey(due), -7))) return '';
+  return '<div class="tip">' + ICON.info + '<span><b>Controllo del colesterolo.</b> Sono passati ' + (S.chol.filter(x => x.d > S.profilo.inizio).length ? '6' : '3') + ' mesi: prenota le analisi del sangue dal medico, poi segna il valore in Progressi.</span></div>';
+}
+
+/* ---------------- Turni della settimana ---------------- */
+function openTurni(mk){
+  const mon = parseKey(mk);
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Turni della settimana</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<div class="between"><button class="btn sec2 sm" data-turni="' + keyOf(addDays(mon, -7)) + '" aria-label="Settimana precedente">‹</button><span class="small mut">dal ' + fmtDate(mon) + ' al ' + fmtDate(addDays(mon, 6)) + '</span><button class="btn sec2 sm" data-turni="' + keyOf(addDays(mon, 7)) + '" aria-label="Settimana successiva">›</button></div>';
+  h += '<div class="card stack" style="gap:4px">';
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(mon, i), k = keyOf(d), cur = turnoOf(d);
+    h += '<label class="between" style="gap:10px;min-height:48px;border-bottom:1px solid var(--line)"><b style="font-size:14px">' + GIORNI[i] + ' ' + fmtDate(d) + '</b><select data-turnosel="' + k + '" style="max-width:160px;padding:8px 10px">' + Object.keys(TURNI).map(t => '<option value="' + t + '"' + (t === cur ? ' selected' : '') + '>' + TURNI[t].l + '</option>').join('') + '</select></label>';
+  }
+  h += '</div><div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-turnicopy="' + mk + '">Copia la settimana prima</button><button class="opt" data-turnirep="' + mk + '">Ripeti per 4 settimane</button></div>';
+  h += '<span class="small mut">Orari dei pasti, cosa portare al lavoro e notifiche seguono il turno di ogni giorno.</span>';
+  sheet(h);
+}
+
+/* ---------------- Lista della spesa condivisa ---------------- */
+function listaPayload(mk){
+  const { monday, items } = buildSpesa(mk), gruppi = [];
+  Object.keys(REP2).forEach(rk => { if (rk === 'casa') return; const voci = Object.keys(items).filter(n => items[n].rep === rk).sort().map(n => ({ n, c: items[n].count })); if (voci.length) gruppi.push({ nome: REP2[rk], sg: rk === 'sg', voci }); });
+  return { mk, titolo: 'Spesa della settimana dal ' + fmtDate(monday), gruppi, nome: S.profilo.nome || '' };
+}
+function listaUrl(){ return typeof SB_URL !== 'undefined' ? SB_URL + '/functions/v1/meno15-lista' : ''; }
+async function listaCarica(mk, forza){
+  if (!S.listaTok || typeof sb === 'undefined' || !sb || !sbUser) return false;
+  try {
+    const { data } = await sb.from('meno15_liste').select('dati,spuntati').eq('token', S.listaTok).maybeSingle();
+    const stessa = !!(data && data.dati && data.dati.mk === mk);
+    if (data && data.dati && !stessa && !forza && mk < data.dati.mk) return false;
+    const row = { token: S.listaTok, user_id: sbUser.id, dati: listaPayload(mk), aggiornato: new Date().toISOString() };
+    if (!stessa) row.spuntati = Object.assign({}, S.spesa[mk] || {});
+    const { error } = await sb.from('meno15_liste').upsert(row);
+    if (error) return false;
+    if (stessa && data.spuntati) { const prima = JSON.stringify(S.spesa[mk] || {}); S.spesa[mk] = Object.assign({}, data.spuntati); if (JSON.stringify(S.spesa[mk]) !== prima) { save(); return 'cambiata'; } }
+    return true;
+  } catch (e) { return false; }
+}
+async function listaCondividi(mk){
+  if (!S.listaTok) { const a = new Uint8Array(18); crypto.getRandomValues(a); S.listaTok = btoa(String.fromCharCode.apply(null, a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); save(); }
+  const ok = await listaCarica(mk, true);
+  if (ok === false) { toast('Non riesco a condividerla adesso: serve internet e il salvataggio online.'); return; }
+  const url = location.origin + location.pathname + '?lista=' + S.listaTok;
+  const txt = 'La nostra lista della spesa, sempre aggiornata: spunta quello che prendi. ' + url;
+  try { if (navigator.share) { await navigator.share({ title: 'Lista della spesa', text: txt }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(txt); toast('Link copiato: incollalo su WhatsApp'); } catch (e) { toast(url); }
+}
+function listaSpunta(voce, on){ if (!S.listaTok || !listaUrl()) return; fetch(listaUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: S.listaTok, voce, on }) }).catch(() => {}); }
+let LV = null;
+async function vistaLista(tok){
+  document.title = 'Lista della spesa';
+  const tabs = $('#tabs'); if (tabs) tabs.parentNode.classList.add('hidden');
+  const app = $('#app');
+  const disegna = () => {
+    if (!LV) { app.innerHTML = '<div class="card stack"><span class="lab">Lista della spesa</span><span class="small mut">Carico…</span></div>'; return; }
+    if (LV.errore) { app.innerHTML = '<div class="card stack"><span class="lab">Lista della spesa</span><span style="font-size:14px">' + esc(LV.errore) + '</span></div>'; return; }
+    const d = LV.dati || {}, sp = LV.spuntati || {};
+    let tot = 0, fatti = 0;
+    (d.gruppi || []).forEach(g => g.voci.forEach(v => { tot++; if (sp[v.n]) fatti++; }));
+    let h = '<div class="hero"><small>Lista condivisa' + (d.nome ? ' da ' + esc(d.nome) : '') + '</small><h1 style="font-size:24px">' + esc(d.titolo || 'Lista della spesa') + '</h1><span class="small" style="color:#BFD8CB">' + fatti + ' su ' + tot + ' presi · si aggiorna da sola</span></div>';
+    (d.gruppi || []).forEach(g => {
+      h += '<div class="card"' + (g.sg ? ' style="border-color:#E0A43A"' : '') + '><div class="lab" style="margin-bottom:4px">' + esc(g.sg ? 'Senza glutine (per te)' : g.nome) + '</div>';
+      g.voci.forEach(v => { const on = !!sp[v.n]; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="padding:8px 0"><input type="checkbox" data-lt="' + esc(v.n) + '"' + (on ? ' checked' : '') + '><span style="flex:1">' + esc(v.n) + '</span>' + (v.c > 1 ? '<span class="small mut">×' + v.c + '</span>' : '') + '</label>'; });
+      h += '</div>';
+    });
+    app.innerHTML = h;
+  };
+  const carica = async () => { try { const r = await fetch(listaUrl() + '?t=' + encodeURIComponent(tok), { cache: 'no-store' }); const j = await r.json(); LV = r.ok ? j : { errore: 'Questa lista non esiste più: chiedi un link nuovo.' }; } catch (e) { if (!LV) LV = { errore: 'Sei offline: riprova quando c\'è rete.' }; } disegna(); };
+  disegna(); await carica();
+  setInterval(() => { if (document.visibilityState === 'visible') carica(); }, 20000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') carica(); });
+  window.__listaTok = tok; window.__listaSet = (v, on) => { if (LV && LV.spuntati) { if (on) LV.spuntati[v] = true; else delete LV.spuntati[v]; } };
+}
+
+/* ---------------- Backup su file ---------------- */
+async function esporta(){
+  const txt = JSON.stringify(S), nome = 'meno15-backup-' + keyOf(new Date()) + '.json';
+  const file = new File([txt], nome, { type: 'application/json' });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Backup Meno15' }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = nome; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  toast('Backup scaricato');
+}
+
 /* ---------------- Notifiche push (solo app installata con salvataggio online) ---------------- */
 const VAPID_PUB = 'BF7XEW7H8--G_i_uWMI1NuqSk06eW4LCzaFdX3UU2OxERQEPY7Cj5XJVKSzrywem5MwP6y4rtO71OMs-cgsZfCg';
 const NOTIF = [
@@ -1461,7 +1640,8 @@ const NOTIF = [
   ['piscina','Piscina','prima dello spuntino pre-allenamento'],
   ['prepara','Pranzo da preparare','la sera prima, quando lo porti al lavoro'],
   ['giornata','Serie in pericolo','la sera, se non hai segnato i pasti'],
-  ['settimana','Fine sfida','domenica sera']
+  ['settimana','Fine sfida','domenica sera'],
+  ['medico','Controllo del colesterolo','quando è ora delle analisi']
 ];
 function pushPossibile(){ return typeof sb !== 'undefined' && !!sb && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
 function notifCard(){
@@ -1523,6 +1703,7 @@ function buildPushPlan(){
     if (Tm.porta.includes('pra') && R[mm.pra] && !['lpz','fle'].includes(mm.pra) && !S.fatti[keyOf(dm) + ':pra']) add('prepara', 21 * 60 + 15, 'Pranzo di domani 🍱', 'Preparalo stasera: ' + R[mm.pra].n + '. Domani niente improvvisazioni.');
     const ser = toMin(T.ser);
     add('giornata', ser != null && ser > 19 * 60 ? ser - 30 : 21 * 60 + 30, 'La serie è in gioco 🔥', 'Non hai ancora segnato i pasti di oggi. Segnali adesso' + (i === 0 && sr ? ' per tenere la serie di ' + sr + (sr === 1 ? ' giorno.' : ' giorni.') : ': ogni giornata nel piano allunga la serie.'), 'giornata', 3);
+    if (k === cholDue()) add('medico', 9 * 60 + 30, 'Controllo del colesterolo 🩺', 'È ora di rifare le analisi del sangue: prenota dal medico, poi segna il valore in Progressi.');
     if (dow(d) === 6) add('settimana', 19 * 60, 'Ultimo giorno della sfida 🏆', '«' + sf.t + '»: hai tempo fino a stasera. Domani parte la sfida nuova.');
   }
   const now = keyOf(new Date()) + 'T' + pad(new Date().getHours()) + ':' + pad(new Date().getMinutes());
@@ -1548,6 +1729,7 @@ function plannedKcal(date, slot){
   if (m[slot] === 'dpz') v = 1000;
   if (m[slot] === 'ffe') v = 1100;
   if (m[slot] === 'lpz' || m[slot] === 'fle') v = 400;
+  if (porzLine(date, slot)) v += (S.porz < 0 ? -60 : 80);
   return v;
 }
 function nextSlots(dateKey, slot){
@@ -1608,7 +1790,7 @@ function riequilibra(dateKey, slot, apply){
     futuri.forEach(x => {
       if (cambi.some(c => c.k === x.k && c.sl === x.sl)) return;
       const other = mainCat(mealsFor(x.d)[x.sl === 'pra' ? 'cen' : 'pra']);
-      byType(x.sl).forEach(c => {
+      poolT(x.sl).forEach(c => {
         if (other && R[c].cat === other) return;
         const sc = balScore(weekBalance(mon, { key: x.k + ':' + x.sl, id: c }));
         if (sc < bs) { bs = sc; best = { x, c }; }
@@ -1865,12 +2047,12 @@ function planFromCasa(days){
     let cenCat = R[m.cen] ? R[m.cen].cat : null;
     if (!['dpz','ffe','fle'].includes(m.cen)) {
       const group = (cenCat === 'uova' || cenCat === 'veg' || cenCat === 'formaggio') ? ['uova','veg','formaggio'] : [cenCat];
-      const b = best(byType('cen').filter(c => group.includes(R[c].cat) && !used.has(c)));
+      const b = best(poolT('cen').filter(c => group.includes(R[c].cat) && !used.has(c))) || best(byType('cen').filter(c => group.includes(R[c].cat) && !used.has(c)));
       if (b.id && b.sc > haveScore(m.cen)) { S.swaps[k + ':cen'] = b.id; used.add(b.id); cenCat = R[b.id].cat; changed++; } else used.add(m.cen);
     }
     if (!['lpz','ffe','fle'].includes(m.pra)) {
       const praCat = R[m.pra] ? R[m.pra].cat : null;
-      let cands = byType('pra').filter(c => !used.has(c) && R[c].cat === praCat && R[c].cat !== cenCat);
+      let cands = poolT('pra').filter(c => !used.has(c) && R[c].cat === praCat && R[c].cat !== cenCat);
       if (!cands.length) cands = byType('pra').filter(c => !used.has(c) && R[c].cat !== cenCat && balScore(weekBalance(monday, { key: k + ':pra', id: c })) <= balScore(weekBalance(monday)));
       const b = best(cands);
       if (b.id && b.sc > haveScore(m.pra)) { S.swaps[k + ':pra'] = b.id; used.add(b.id); changed++; } else used.add(m.pra);
@@ -1981,8 +2163,10 @@ function openSpesa(mk){
     h += '</div>';
   });
   h += '<button class="btn sec2" data-guida>Come scegliere i prodotti (cosa evitare)</button>';
+  if (typeof sb !== 'undefined' && sb && sbUser) h += '<button class="btn pri" data-sharelista="' + mk + '">Condividi con lei (lista sempre aggiornata)</button><span class="small mut" style="margin-top:-6px">Le mandi un link: vede la stessa lista e quello che spunta lei lo vedi anche tu.</span>';
   h += '<button class="btn sec2" data-copyspesa="' + mk + '">Copia la lista (da incollare su WhatsApp)</button>';
   sheet(h);
+  if (S.listaTok && !openSpesa.busy) { openSpesa.busy = true; listaCarica(mk).then(r => { openSpesa.busy = false; if (r === 'cambiata' && document.querySelector('[data-sharelista="' + mk + '"]')) openSpesa(mk); }); }
 }
 
 /* ---------------- HO FAME ---------------- */
@@ -2336,6 +2520,8 @@ function viewProgressi(){
   h += vitaCard();
   h += panciaProgressCard();
   h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-riep="0" style="min-height:52px">La tua settimana</button><button class="opt" data-report style="min-height:52px">Riepilogo per il medico</button></div>';
+  h += porzCard();
+  const cd = cholDue(); if (cd) h += '<div class="card stack"><span class="lab">Prossimo controllo del colesterolo</span><span style="font-size:14px">Analisi del sangue verso il <b>' + fmtDate(parseKey(cd)) + '</b>. Poi segna il nuovo valore nella scheda del colesterolo: l\'app ti ricorda il controllo successivo.</span></div>';
   h += '<button class="btn sec2" data-sfide>Sfide e medaglie (' + Object.keys(S.medaglie).length + ' su ' + MEDAGLIE.length + ')</button>';
   h += '<button class="btn sec2" data-nutri>Guida: mangiare bilanciato</button>';
   // fase
@@ -2395,6 +2581,7 @@ function applySettings(loud){
   p.compagnaCeliaca = $('#st-gf').checked;
   if ($('#st-due')) p.cenePerDue = $('#st-due').checked;
   if ($('#st-spu')) p.spuntino = $('#st-spu').checked;
+  if ($('#st-semp')) { const prima = p.semplici !== false; p.semplici = $('#st-semp').checked; if (prima !== p.semplici) Object.keys(planCache).forEach(k => delete planCache[k]); }
   if ($('#st-ora') && toMin($('#st-ora').value) != null) p.oraAll = $('#st-ora').value;
   if ($('#st-dur')) { const du = parseInt($('#st-dur').value, 10); if (du >= 15 && du <= 240) p.durAll = du; }
   Object.keys(planCache).forEach(k => delete planCache[k]);
@@ -2426,10 +2613,11 @@ function openSettings(){
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-gf" style="width:22px;height:22px"' + (p.compagnaCeliaca ? ' checked' : '') + '> Mostra le indicazioni senza glutine per la mia compagna</label>';
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-due" style="width:22px;height:22px"' + (p.cenePerDue !== false ? ' checked' : '') + '> La cena la cucino per due (lista della spesa)</label>';
   h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-spu" style="width:22px;height:22px"' + (p.spuntino !== false ? ' checked' : '') + '> Spuntino di metà mattina</label>';
+  h += '<label class="row" style="min-height:44px;font-size:14px;font-weight:600"><input type="checkbox" id="st-semp" style="width:22px;height:22px"' + (p.semplici !== false ? ' checked' : '') + '> Solo ricette veloci (massimo 15 minuti)</label><span class="small mut" style="margin-top:-6px">Pochi ingredienti e scorciatoie da supermercato: legumi in scatola, surgelati, riso e farro precotti. Vale dal menu di lunedì 23 e per "Cambia piatto".</span>';
   const ex = Object.keys(S.escl || {}).filter(k => R[k]);
   h += '<div class="lab">Piatti esclusi</div>' + (ex.length ? '<div class="chips">' + ex.map(k => '<button class="opt" data-unescl="' + k + '" style="min-height:38px;border-radius:999px;padding:6px 12px;font-weight:500">' + esc(R[k].n) + ' ✕</button>').join('') + '</div><span class="small mut">Tocca un piatto per rimetterlo nel menu.</span>' : '<span class="small mut">Nessuno. Li escludi dalla scheda di una ricetta con "Non mi piace".</span>');
   h += '<button class="btn pri" id="st-save">Salva</button><span class="small mut" id="st-saved" style="text-align:center">Le modifiche si salvano da sole</span></div>';
-  h += '<div class="card stack"><span class="lab">I tuoi dati</span><span class="small mut">' + (cloud === 'cloud' ? 'Salvati nel tuo account: li ritrovi su ogni dispositivo dove apri questa app.' : 'Salvati solo su questo telefono, dentro l\'app.') + '</span><button class="btn sec2" id="st-copy">Copia un backup dei dati</button><span class="small mut">Copialo ogni tanto e incollalo in una nota: se cambi telefono lo ripristini da qui sotto.</span><textarea id="st-backup" placeholder="Incolla qui un backup"></textarea><button class="btn sec2" id="st-restore">Ripristina il backup</button></div>';
+  h += '<div class="card stack"><span class="lab">I tuoi dati</span><span class="small mut">' + (cloud === 'cloud' ? 'Salvati nel tuo account: li ritrovi su ogni dispositivo dove apri questa app.' : 'Salvati solo su questo telefono, dentro l\'app.') + '</span><button class="btn sec2" data-export>Scarica il backup come file</button><button class="btn sec2" id="st-copy">Copia un backup dei dati</button><span class="small mut">Copialo ogni tanto e incollalo in una nota: se cambi telefono lo ripristini da qui sotto.</span><textarea id="st-backup" placeholder="Incolla qui un backup"></textarea><button class="btn sec2" id="st-restore">Ripristina il backup</button><label class="btn sec2" style="cursor:pointer"><input type="file" id="st-file" accept="application/json,.json,.txt" class="hidden">Ripristina da un file</label></div>';
   sheet(h);
   updatePacePreview();
 }
@@ -2464,7 +2652,7 @@ function render(){
   $('#app').innerHTML = v();
   if (keepQ != null && $('#aiq')) $('#aiq').value = keepQ;
   tickTimer();
-  if (tab === 'oggi') { try { festeggia(); } catch (e) {} }
+  if (tab === 'oggi') { let ch = false; try { ch = valutaPorzioni(); } catch (e) {} if (ch) { render(); return; } try { festeggia(); } catch (e) {} }
 }
 
 /* ---------------- Eventi ---------------- */
@@ -2491,7 +2679,8 @@ document.addEventListener('click', async (e) => {
     save(); render(); toast('Serata pizza: ' + GIORNI[Number(d.pizza)].toLowerCase()); return;
   }
   if (d.spesa) { openSpesa(d.spesa); return; }
-  if (d.shop) { const mk = d.mk; S.spesa[mk] = S.spesa[mk] || {}; if (t.checked) S.spesa[mk][d.shop] = true; else delete S.spesa[mk][d.shop]; t.closest('.shop-item').classList.toggle('done', t.checked); save(); return; }
+  if (d.shop) { const mk = d.mk; S.spesa[mk] = S.spesa[mk] || {}; if (t.checked) S.spesa[mk][d.shop] = true; else delete S.spesa[mk][d.shop]; t.closest('.shop-item').classList.toggle('done', t.checked); save(); listaSpunta(d.shop, t.checked); return; }
+  if (d.lt !== undefined) { const on = t.checked; t.closest('.shop-item').classList.toggle('done', on); if (window.__listaSet) window.__listaSet(d.lt, on); fetch(listaUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: window.__listaTok, voce: d.lt, on }) }).catch(() => toast('Sei offline: la spunta non è stata salvata')); return; }
   if (d.copyspesa) {
     const { monday, items } = buildSpesa(d.copyspesa), done = S.spesa[d.copyspesa] || {};
     let txt = 'Spesa settimana dal ' + fmtDate(monday) + '\n';
@@ -2552,6 +2741,15 @@ document.addEventListener('click', async (e) => {
   if (d.guida !== undefined) { openGuida(); return; }
   if (d.nutri !== undefined) { openNutri(); return; }
   if (d.sfide !== undefined) { openSfide(); return; }
+  if (d.apri) { const kk = d.date + ':' + d.apri; if (aperti.has(kk)) aperti.delete(kk); else aperti.add(kk); render(); return; }
+  if (d.tuttook) { let n = 0; activeSlots().forEach(x => { if (x !== 'ser' && !S.fatti[d.tuttook + ':' + x] && !S.mangiato[d.tuttook + ':' + x]) { S.fatti[d.tuttook + ':' + x] = true; n++; } }); S.cele['ieri:' + d.tuttook] = 1; save(); render(); toast(n ? 'Segnati ' + n + ' pasti come da piano' : 'Era già tutto segnato'); return; }
+  if (d.ierino) { S.cele['ieri:' + d.ierino] = 1; save(); render(); return; }
+  if (d.turni) { openTurni(d.turni); return; }
+  if (d.turnicopy) { const mon = parseKey(d.turnicopy); for (let i = 0; i < 7; i++) S.turni[keyOf(addDays(mon, i))] = turnoOf(addDays(mon, i - 7)); save(); render(); openTurni(d.turnicopy); toast('Copiati i turni della settimana prima'); return; }
+  if (d.turnirep) { const mon = parseKey(d.turnirep); for (let w = 1; w <= 4; w++) for (let i = 0; i < 7; i++) S.turni[keyOf(addDays(mon, w * 7 + i))] = turnoOf(addDays(mon, i)); save(); toast('Schema ripetuto per le prossime 4 settimane'); return; }
+  if (d.porzundo !== undefined) { const u = S.adatta[S.adatta.length - 1]; if (u) { S.porz = u.da; u.a = u.da; u.motivo += ' (modifica annullata)'; save(); render(); toast('Porzioni come prima'); } return; }
+  if (d.sharelista) { listaCondividi(d.sharelista); return; }
+  if (d.export !== undefined) { esporta(); return; }
   if (d.notifcat) { if (t.checked) delete S.notif[d.notifcat]; else S.notif[d.notifcat] = false; save(); return; }
   if (d.notifon !== undefined) { notifOn(); return; }
   if (d.notifoff !== undefined) { notifOff(); return; }
@@ -2649,6 +2847,8 @@ document.addEventListener('click', async (e) => {
 });
 document.addEventListener('input', (e) => { if (e.target && (e.target.id === 'st-wed' || e.target.id === 'st-target')) updatePacePreview(); });
 document.addEventListener('change', async (e) => {
+  if (e.target && e.target.dataset && e.target.dataset.turnosel) { S.turni[e.target.dataset.turnosel] = e.target.value; save(); render(); return; }
+  if (e.target && e.target.id === 'st-file' && e.target.files && e.target.files[0]) { try { const txt = await e.target.files[0].text(); const ta = $('#st-backup'); if (ta) { ta.value = txt; const b = $('#st-restore'); if (b) b.click(); } } catch (err) { toast('File non leggibile'); } return; }
   if (e.target && e.target.id === 'al-photo' && e.target.files && e.target.files[0]) {
     const btn = $('[data-altrogo]'); const slot = btn ? btn.getAttribute('data-altrogo') : 'pra', dk = btn ? btn.getAttribute('data-date') : keyOf(new Date());
     const tx = ($('#al-text') || {}).value || '';
@@ -2662,7 +2862,7 @@ document.addEventListener('change', async (e) => {
     pcRes = Object.assign(pcRes || {}, { text: tx, busy:false }); openPianoC(slot, dk, true); return;
   }
   if (e.target && (e.target.id === 'st-wed' || e.target.id === 'st-target')) updatePacePreview();
-  if (e.target && /^st-(wed|inizio|start|target|pizza|gf|due|spu|ora|dur)$/.test(e.target.id || '')) { if (applySettings(false) !== false) { render(); const el = $('#st-saved'); if (el) { el.textContent = 'Salvato automaticamente'; } } }
+  if (e.target && /^st-(wed|inizio|start|target|pizza|gf|due|spu|semp|ora|dur)$/.test(e.target.id || '')) { if (applySettings(false) !== false) { render(); const el = $('#st-saved'); if (el) { el.textContent = 'Salvato automaticamente'; } } }
   if (e.target && e.target.id === 'fridgephoto' && e.target.files && e.target.files[0]) { fridgePhoto(e.target.files[0]); return; }
   if (e.target && e.target.id === 'menuphoto' && e.target.files && e.target.files[0]) {
     const f = e.target.files[0];
@@ -2675,9 +2875,13 @@ document.addEventListener('change', async (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#layer').innerHTML) closeSheet(); });
 
+const LISTA_T = new URLSearchParams(location.search).get('lista');
+if (LISTA_T) vistaLista(LISTA_T);
+else {
 render();
 initCloud();
 if (window.supabase) sbInit(); else window.addEventListener('load', sbInit);
+}
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   let reloaded = false;
