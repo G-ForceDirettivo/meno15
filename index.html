@@ -282,6 +282,11 @@ const DEFAULT = {
   fatti:{},           // 'YYYY-MM-DD:slot' -> true
   mangiato:{},        // 'YYYY-MM-DD:slot' -> {testo, piatto, kcal, prev, cat, rossa, voto, fb, ts}
   comp:{},            // 'YYYY-MM-DD:slot' -> {az, da, kcal}  compensazioni sui pasti dopo
+  medaglie:{},        // id -> 'YYYY-MM-DD' di quando l'hai presa
+  cele:{},            // festeggiamenti già mostrati
+  notif:{},           // categoria -> false se spenta
+  notifOn:false,
+  pushPlan:[],        // notifiche programmate (le invia il server)
   stress:[],
   bevande:{},
   pref:{},
@@ -320,7 +325,8 @@ function sbInit(){
   try { sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'meno15-auth' } }); } catch (e) { sb = null; return; }
   sb.auth.getSession().then(({ data }) => { sbUser = data && data.session ? data.session.user : null; if (sbUser) sbPull(); else render(); }).catch(() => {});
   sb.auth.onAuthStateChange((ev, session) => { sbUser = session ? session.user : null; });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sbUser) sbPull(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sbUser) { sbPull(); if (S.notifOn) setTimeout(sbSchedule, 4000); } });
+  setTimeout(() => { if (sbUser && S.notifOn) sbSchedule(); }, 6000);
 }
 async function sbPull(){
   if (!sb || !sbUser) return;
@@ -339,6 +345,7 @@ async function sbPush(){
   if (sbBusy) { sbAgain = true; return; }
   sbBusy = true;
   try {
+    try { S.pushPlan = buildPushPlan(); } catch (e) {}
     const { error } = await sb.from('meno15_stato').upsert({ user_id: sbUser.id, dati: JSON.parse(JSON.stringify(S)), aggiornato: new Date().toISOString() });
     if (error) sbErr = 'Salvataggio online non riuscito: riprovo alla prossima modifica.'; else { sbErr = ''; sbLast = Date.now(); }
   } catch (e) { sbErr = 'Sei offline: salvo online appena torna la rete.'; }
@@ -693,7 +700,7 @@ function renderTabs(){
 function go(t){ tab = t; render(); window.scrollTo(0, 0); }
 function toast(msg){
   const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg; document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2600);
+  setTimeout(() => el.remove(), msg.length > 60 ? 4200 : 2600);
 }
 
 /* ---------------- OGGI ---------------- */
@@ -733,6 +740,7 @@ function viewOggi(){
   h += '<div class="seg seg5" style="grid-template-columns:repeat(5,minmax(0,1fr))" aria-label="Turno di oggi">';
   Object.keys(TURNI).forEach(t => { h += '<button class="opt' + (turnoOf(today) === t ? ' on' : '') + '" data-turno="' + t + '" data-day="' + k + '">' + TURNI[t].l + '</button>'; });
   h += '</div>';
+  h += sfidaCard();
   h += '<div class="sec"><h2>Cosa mangi oggi</h2><span class="small mut">tocca per la ricetta</span></div>';
   h += mealCards(today);
   if (i === 6 || i === 0) h += '<button class="card meal" data-riep="' + (i === 0 ? -1 : 0) + '" style="border-color:#E0A43A"><span class="lab">' + (i === 0 ? 'La settimana appena finita' : 'Fine settimana') + '</span><span class="dish">Guarda il tuo riepilogo</span><span class="small mut">Peso, pasti, acqua, raptus e un consiglio per la prossima settimana</span></button>';
@@ -790,7 +798,10 @@ function trainingCard(date){
    ['Dopo (' + hm(A.cena) + ')', 'Cena entro un\'ora: un palmo di proteine e i carboidrati (in più +1 fetta di pane o +2 cucchiai di riso/pasta, è già scritto nella cena).'],
    ['Niente premi', 'L\'allenamento non "autorizza" dolci o birra in più: è già dentro il piano. Se salti l\'allenamento, salta anche l\'aggiunta a cena.']
   ].forEach(([t, d]) => { if (d) h += '<li><span style="color:var(--blue-d);font-weight:700;min-width:84px">' + esc(t) + '</span><span>' + esc(d) + '</span></li>'; });
-  h += '</ul></div>';
+  h += '</ul>';
+  const fk = keyOf(date) + ':all', fatto = !!S.fatti[fk];
+  h += '<button class="btn ' + (fatto ? 'sec2' : 'pri') + '" data-done="all" data-date="' + keyOf(date) + '">' + (fatto ? '✓ Allenamento fatto (tocca per annullare)' : 'Segna allenamento fatto · +10 punti') + '</button>';
+  h += '</div>';
   return h;
 }
 const BED = { mattina:'23:00', pomeriggio:'23:30', sera:'1:00', notte:'7:30', riposo:'23:30' };
@@ -1319,6 +1330,205 @@ function openPianoB(slot, dateKey){
   if (slot === 'pra') h += '<button class="btn sec2" data-noingr="' + dateKey + '">Vedi i pranzi che posso preparare con quello che ho</button>';
   sheet(h);
 }
+/* ---------------- Sfide: punti, serie, sfida della settimana, medaglie ---------------- */
+const PESO_SLOT = { col:15, spu:5, pra:20, mer:10, cen:20, ser:5 };
+const SOGLIA = 70;
+const scoreCache = {};
+function dayScore(k){
+  const d = parseKey(k), m = mealsFor(d), b = S.bevande[k] || {}, pool = S.profilo.piscina.includes(dow(d));
+  let got = 0, max = 0; const manca = [];
+  activeSlots().forEach(sl => {
+    const w = PESO_SLOT[sl] || 5; max += w;
+    const me = S.mangiato[k + ':' + sl];
+    if (me) got += me.voto === 'bene' ? w : me.voto === 'cosi' ? w / 2 : 0;
+    else if (S.fatti[k + ':' + sl]) got += w;
+    else if (sl !== 'ser') manca.push(SLOTNAME[sl].toLowerCase());
+  });
+  const acq = b.acqua || 0;
+  max += 10; got += acq >= 8 ? 10 : acq >= 6 ? 5 : 0;
+  if (acq < 8) manca.push((8 - acq) + (8 - acq === 1 ? ' bicchiere' : ' bicchieri') + ' d\'acqua');
+  max += 10;
+  const segnato = b.acqua != null || b.gas != null || b.caffe != null;
+  if (segnato) { if ((b.gas || 0) <= gasLimit()) got += 5; if ((b.caffe || 0) <= 3) got += 5; }
+  if (pool) { max += 10; if (S.fatti[k + ':all']) got += 10; else manca.push('allenamento'); }
+  const rap = S.fame.filter(x => keyOf(new Date(x.t)) === k).length;
+  const bonus = Math.min(10, rap * 5);
+  const p = Math.min(100, Math.round(got / max * 100 + bonus));
+  return { p, manca, bonus, rap };
+}
+function giorniDa(){ const st = parseKey(S.profilo.inizio || keyOf(new Date())), out = [], oggi = keyOf(new Date()); for (let d = st; keyOf(d) <= oggi; d = addDays(d, 1)) out.push(keyOf(d)); return out; }
+function serie(){
+  const oggi = keyOf(new Date()), st = S.profilo.inizio || oggi;
+  const okOggi = dayScore(oggi).p >= SOGLIA;
+  let n = okOggi ? 1 : 0, d = addDays(new Date(), -1);
+  while (keyOf(d) >= st && dayScore(keyOf(d)).p >= SOGLIA) { n++; d = addDays(d, -1); }
+  return { n, okOggi };
+}
+function serieMigliore(){ let best = 0, cur = 0; giorniDa().forEach(k => { if (dayScore(k).p >= SOGLIA) { cur++; best = Math.max(best, cur); } else cur = 0; }); return best; }
+function puntiTotali(){ return giorniDa().reduce((a, k) => a + dayScore(k).p, 0); }
+const LIVELLI = [[0,'Principiante'],[500,'In marcia'],[1500,'Costante'],[3000,'Determinato'],[5000,'Inarrestabile'],[8000,'Campione'],[12000,'Leggenda']];
+function livello(pt){ let i = 0; LIVELLI.forEach((l, j) => { if (pt >= l[0]) i = j; }); const next = LIVELLI[i + 1]; return { n: i + 1, nome: LIVELLI[i][1], da: LIVELLI[i][0], a: next ? next[0] : null, prossimo: next ? next[1] : null }; }
+function giorniSett(monday){ const oggi = keyOf(new Date()), st = S.profilo.inizio || ''; const out = []; for (let i = 0; i < 7; i++) { const k = keyOf(addDays(monday, i)); if (k <= oggi && k >= st) out.push(k); } return out; }
+const SFIDE = [
+  { id:'acqua', t:'Sempre idratato', d:'5 giorni con tutti gli 8 bicchieri d\'acqua', n:5, prog: m => giorniSett(m).filter(k => ((S.bevande[k] || {}).acqua || 0) >= 8).length },
+  { id:'pranzi', t:'Pranzo da campione', d:'6 pranzi del piano segnati come mangiati', n:6, prog: m => giorniSett(m).filter(k => S.fatti[k + ':pra'] && !(S.mangiato[k + ':pra'] && S.mangiato[k + ':pra'].voto !== 'bene')).length },
+  { id:'serie', t:'Settimana nel piano', d:'5 giornate da almeno ' + SOGLIA + ' punti', n:5, prog: m => giorniSett(m).filter(k => dayScore(k).p >= SOGLIA).length },
+  { id:'gas', t:'Bollicine sotto controllo', d:'6 giorni con la Coca Zero nel limite (segnando le bevande)', n:6, prog: m => giorniSett(m).filter(k => S.bevande[k] && (S.bevande[k].gas || 0) <= gasLimit()).length },
+  { id:'raptus', t:'Domatore di raptus', d:'3 volte apri «Ho fame» invece della credenza', n:3, prog: m => S.fame.filter(x => keyOf(mondayOf(new Date(x.t))) === keyOf(m)).length },
+  { id:'cene', t:'Cena perfetta', d:'6 cene del piano, nessuna fuori piano', n:6, prog: m => giorniSett(m).filter(k => S.fatti[k + ':cen'] && !(S.mangiato[k + ':cen'] && S.mangiato[k + ':cen'].voto === 'fuori')).length },
+  { id:'caffe', t:'Caffè giusto', d:'6 giorni con al massimo 3 caffè (segnandoli)', n:6, prog: m => giorniSett(m).filter(k => S.bevande[k] && S.bevande[k].caffe != null && S.bevande[k].caffe <= 3).length },
+  { id:'vasche', t:'Tutte le vasche', d:'tutti gli allenamenti della settimana segnati', n:0, prog: m => giorniSett(m).filter(k => S.fatti[k + ':all']).length }
+];
+function sfidaDi(monday){ const w = Math.max(0, weekIndex(monday)); const sf = SFIDE[w % SFIDE.length]; const n = sf.n || Math.max(1, S.profilo.piscina.length); const p = Math.min(n, sf.prog(monday)); return { id: sf.id, t: sf.t, d: sf.id === 'vasche' ? (n === 1 ? 'l\'allenamento della settimana segnato' : 'i ' + n + ' allenamenti della settimana segnati') : sf.d, n, p, vinta: p >= n }; }
+function sfideVinte(){ const st = mondayOf(parseKey(S.profilo.inizio || keyOf(new Date()))), oggi = mondayOf(new Date()); let n = 0; for (let m = st; m <= oggi; m = addDays(m, 7)) if (sfidaDi(m).vinta) n++; return n; }
+function kgPersi(){ const p = S.profilo; return S.pesi.length ? Math.max(0, (p.pesoIniziale || 0) - lastWeight()) : 0; }
+const MEDAGLIE = [
+  { id:'primo', e:'🌱', t:'Primo giorno nel piano', ok: () => serieMigliore() >= 1 },
+  { id:'serie3', e:'🔥', t:'3 giorni di fila', ok: () => serieMigliore() >= 3 },
+  { id:'serie7', e:'🔥', t:'Una settimana di fila', ok: () => serieMigliore() >= 7 },
+  { id:'serie14', e:'💪', t:'2 settimane di fila', ok: () => serieMigliore() >= 14 },
+  { id:'serie30', e:'🏆', t:'Un mese di fila', ok: () => serieMigliore() >= 30 },
+  { id:'perfetta', e:'⭐', t:'Giornata perfetta (100 punti)', ok: () => giorniDa().some(k => dayScore(k).p >= 100) },
+  { id:'kg1', e:'⚖️', t:'Il primo chilo', ok: () => kgPersi() >= 1 },
+  { id:'kg3', e:'⚖️', t:'−3 kg', ok: () => kgPersi() >= 3 },
+  { id:'kg5', e:'🎯', t:'−5 kg', ok: () => kgPersi() >= 5 },
+  { id:'kg10', e:'🚀', t:'−10 kg', ok: () => kgPersi() >= 10 },
+  { id:'obiettivo', e:'👑', t:'Obiettivo raggiunto', ok: () => S.pesi.length > 0 && lastWeight() <= S.profilo.pesoTarget },
+  { id:'sfida1', e:'🥇', t:'Prima sfida vinta', ok: () => sfideVinte() >= 1 },
+  { id:'sfida5', e:'🏅', t:'5 sfide vinte', ok: () => sfideVinte() >= 5 },
+  { id:'raptus10', e:'🧠', t:'10 raptus affrontati', ok: () => S.fame.length >= 10 },
+  { id:'acqua7', e:'💧', t:'7 giorni con tutta l\'acqua', ok: () => giorniDa().filter(k => ((S.bevande[k] || {}).acqua || 0) >= 8).length >= 7 },
+  { id:'vasche10', e:'🏊', t:'10 allenamenti', ok: () => Object.keys(S.fatti).filter(k => k.endsWith(':all')).length >= 10 },
+  { id:'vita5', e:'📏', t:'−5 cm di vita', ok: () => S.vita.length > 1 && (S.vita[0].cm - S.vita[S.vita.length - 1].cm) >= 5 }
+];
+// festeggia traguardi nuovi (chiamata dopo ogni render)
+function festeggia(){
+  if (!S.profilo.inizio) return;
+  const oggi = keyOf(new Date()), msgs = [];
+  let cambiato = false;
+  MEDAGLIE.forEach(md => { if (!S.medaglie[md.id] && md.ok()) { S.medaglie[md.id] = oggi; msgs.push(md.e + ' Nuova medaglia: ' + md.t); cambiato = true; } });
+  const sc = dayScore(oggi).p;
+  if (sc >= SOGLIA && !S.cele[oggi + ':70']) { S.cele[oggi + ':70'] = 1; cambiato = true; const sr = serie().n; msgs.unshift('🎯 Giornata nel piano! ' + (sr > 1 ? 'Serie di ' + sr + ' giorni 🔥' : 'La serie è partita 🔥')); }
+  if (sc >= 100 && !S.cele[oggi + ':100']) { S.cele[oggi + ':100'] = 1; cambiato = true; msgs.unshift('⭐ 100 punti: giornata perfetta!'); }
+  const mk = keyOf(mondayOf(new Date())), sf = sfidaDi(mondayOf(new Date()));
+  if (sf.vinta && !S.cele['sfida:' + mk]) { S.cele['sfida:' + mk] = 1; cambiato = true; msgs.unshift('🏆 Sfida vinta: ' + sf.t + '!'); }
+  if (cambiato) { save(); if (msgs.length) toast(msgs.slice(0, 2).join(' · ')); }
+}
+function sfidaCard(){
+  if (!S.profilo.inizio) return '';
+  const oggi = keyOf(new Date()), ds = dayScore(oggi), sr = serie(), sf = sfidaDi(mondayOf(new Date())), lv = livello(puntiTotali());
+  const col = ds.p >= SOGLIA ? 'var(--green-d)' : '#8A3A0E';
+  let h = '<button class="card meal stack" data-sfide style="border-color:#E0A43A;gap:10px"><div class="between"><span class="lab">La sfida di oggi</span><span class="pill y">Livello ' + lv.n + ' · ' + lv.nome + '</span></div>';
+  h += '<div class="between" style="align-items:flex-end"><div><span style="font-family:Space Grotesk,system-ui,sans-serif;font-size:34px;font-weight:700;line-height:1;color:' + col + '">' + ds.p + '</span><span class="small mut"> / 100 punti</span></div>';
+  h += '<div style="text-align:right"><span style="font-family:Space Grotesk,system-ui,sans-serif;font-size:26px;font-weight:700;line-height:1">🔥 ' + sr.n + '</span><div class="small mut">' + (sr.n === 1 ? 'giorno' : 'giorni') + ' di fila</div></div></div>';
+  h += '<div style="position:relative"><div class="bar" style="background:#ECEFED"><i style="width:' + Math.max(3, ds.p) + '%;background:' + (ds.p >= SOGLIA ? 'var(--green)' : '#E0A43A') + '"></i></div><span style="position:absolute;left:' + SOGLIA + '%;top:-3px;bottom:-3px;width:2px;background:var(--ink2);opacity:.5"></span></div>';
+  h += '<span class="small">' + (ds.p >= SOGLIA ? '✓ Giornata nel piano: la serie è salva.' : 'Arriva a ' + SOGLIA + ' per tenere la serie' + (sr.n ? ' di ' + sr.n + (sr.n === 1 ? ' giorno' : ' giorni') : '') + '.') + (ds.manca.length && ds.p < 100 ? ' <span class="mut">Ti manca: ' + esc(ds.manca.slice(0, 4).join(', ')) + '.</span>' : '') + '</span>';
+  h += '<div style="border-top:1px solid var(--line);padding-top:10px" class="stack"><div class="between"><span style="font-weight:700;font-size:14px">🏆 ' + esc(sf.t) + '</span><span class="small" style="font-weight:700;color:' + (sf.vinta ? 'var(--green-d)' : 'var(--ink2)') + '">' + (sf.vinta ? 'Vinta!' : sf.p + ' / ' + sf.n) + '</span></div>';
+  h += '<div class="bar" style="background:#ECEFED;height:6px"><i style="width:' + Math.max(3, sf.p / sf.n * 100) + '%;background:#E0A43A"></i></div><span class="small mut">Sfida della settimana: ' + esc(sf.d) + '.</span></div>';
+  return h + '</button>';
+}
+function openSfide(){
+  const pt = puntiTotali(), lv = livello(pt), sf = sfidaDi(mondayOf(new Date())), nm = Object.keys(S.medaglie).length;
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Sfide e medaglie</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<div class="card stack"><div class="between"><span class="lab">Il tuo livello</span><span class="small mut">' + pt + ' punti in tutto</span></div><b style="font-size:20px">Livello ' + lv.n + ': ' + esc(lv.nome) + '</b>';
+  if (lv.a) h += '<div class="bar" style="background:#ECEFED"><i style="width:' + Math.max(3, (pt - lv.da) / (lv.a - lv.da) * 100) + '%;background:#E0A43A"></i></div><span class="small mut">Ancora ' + (lv.a - pt) + ' punti per diventare «' + esc(lv.prossimo) + '».</span>';
+  else h += '<span class="small">Livello massimo. Ora l\'obiettivo è restarci.</span>';
+  h += '<span class="small mut">Serie migliore: ' + serieMigliore() + ' giorni · sfide vinte: ' + sfideVinte() + '</span></div>';
+  h += '<div class="card stack"><span class="lab">Sfida della settimana</span><b style="font-size:16px">🏆 ' + esc(sf.t) + '</b><span class="small">' + esc(sf.d) + '. ' + (sf.vinta ? '<b style="color:var(--green-d)">Vinta!</b>' : 'Sei a ' + sf.p + ' su ' + sf.n + '.') + '</span><span class="small mut">Ogni lunedì ne parte una nuova.</span></div>';
+  h += '<div class="card stack"><div class="between"><span class="lab">Medaglie</span><span class="small mut">' + nm + ' su ' + MEDAGLIE.length + '</span></div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">';
+  MEDAGLIE.forEach(md => { const on = !!S.medaglie[md.id]; h += '<div style="text-align:center;padding:10px 4px;border-radius:14px;background:' + (on ? '#FFF1D6' : '#F1F3F2') + ';' + (on ? '' : 'filter:grayscale(1);opacity:.55') + '"><div style="font-size:26px">' + md.e + '</div><div class="small" style="line-height:1.25;font-weight:600">' + esc(md.t) + '</div>' + (on ? '<div class="small mut">' + fmtDate(parseKey(S.medaglie[md.id])) + '</div>' : '') + '</div>'; });
+  h += '</div></div>';
+  h += '<div class="card stack"><span class="lab">Come fai punti</span><ul class="clean">';
+  [['Pasti', 'segna ogni pasto mangiato: colazione 15, pranzo 20, cena 20, merenda 10, spuntino e fine serata 5. Un pasto «così così» vale metà, uno fuori piano zero.'],
+   ['Acqua', '8 bicchieri 10 punti, 6 bicchieri 5.'],
+   ['Bevande', 'Coca Zero nel limite e massimo 3 caffè: 5 punti l\'uno (vanno segnati).'],
+   ['Allenamento', 'nei giorni di piscina, segnalo: 10 punti.'],
+   ['Bonus', 'ogni volta che apri «Ho fame» invece della credenza: +5 (massimo 10 al giorno).'],
+   ['Serie', 'con almeno ' + SOGLIA + ' punti la giornata è nel piano e la serie cresce. Sotto, riparte da zero.']
+  ].forEach(([a, b]) => { h += '<li><span style="font-weight:700;min-width:92px">' + a + '</span><span>' + esc(b) + '</span></li>'; });
+  h += '</ul><span class="small mut">I punti premiano la costanza, non la fame: mangiare meno del piano non dà punti in più.</span></div>';
+  h += notifCard();
+  sheet(h);
+}
+
+/* ---------------- Notifiche push (solo app installata con salvataggio online) ---------------- */
+const VAPID_PUB = 'BF7XEW7H8--G_i_uWMI1NuqSk06eW4LCzaFdX3UU2OxERQEPY7Cj5XJVKSzrywem5MwP6y4rtO71OMs-cgsZfCg';
+const NOTIF = [
+  ['mattina','Buongiorno con la sfida','all\'ora di colazione'],
+  ['peso','Giorno della bilancia','lunedì mattina, se non ti sei pesato'],
+  ['acqua','Acqua','alle 15, solo se sei indietro'],
+  ['raptus','Ora dei raptus','poco prima della merenda'],
+  ['piscina','Piscina','prima dello spuntino pre-allenamento'],
+  ['prepara','Pranzo da preparare','la sera prima, quando lo porti al lavoro'],
+  ['giornata','Serie in pericolo','la sera, se non hai segnato i pasti'],
+  ['settimana','Fine sfida','domenica sera']
+];
+function pushPossibile(){ return typeof sb !== 'undefined' && !!sb && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function notifCard(){
+  if (typeof sb === 'undefined') return '';
+  let h = '<div class="card stack" id="notif-card"><span class="lab">Notifiche sul telefono</span>';
+  if (!sbUser) return h + '<span class="small mut">Accedi al salvataggio online (in Impostazioni) per ricevere le notifiche.</span></div>';
+  if (!pushPossibile()) return h + '<span class="small">Su iPhone le notifiche funzionano solo aprendo Meno15 <b>dall\'icona sulla schermata Home</b> (con iOS 16.4 o più recente), non da Safari.</span></div>';
+  const attive = S.notifOn && Notification.permission === 'granted';
+  if (Notification.permission === 'denied') return h + '<span class="small">Le notifiche sono bloccate. Sblocca da Impostazioni dell\'iPhone → Notifiche → Meno15, poi torna qui.</span></div>';
+  if (!attive) {
+    h += '<span class="small">Ti avviso io: la sfida del mattino, l\'ora dei raptus, il pranzo da preparare la sera e quando la serie è in pericolo. Massimo 4-5 al giorno, solo quando servono.</span>';
+    return h + '<button class="btn pri" data-notifon>Attiva le notifiche</button></div>';
+  }
+  h += '<span class="small" style="color:var(--green-d)">✓ Attive su questo telefono. Scegli quali ricevere:</span>';
+  NOTIF.forEach(([id, t, q]) => { const on = S.notif[id] !== false; h += '<label class="between" style="padding:6px 0;border-bottom:1px solid var(--line);gap:10px"><span><b style="font-size:14px">' + t + '</b><div class="small mut">' + q + '</div></span><input type="checkbox" data-notifcat="' + id + '"' + (on ? ' checked' : '') + ' style="width:22px;height:22px;accent-color:var(--green)"></label>'; });
+  h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-notiftest>Manda una prova</button><button class="opt" data-notifoff>Disattiva</button></div>';
+  return h + '</div>';
+}
+function b64u(s){ const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+async function notifOn(){
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Permesso non dato: puoi attivarlo da Impostazioni dell\'iPhone → Notifiche.'); rerenderSheet(); return; }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUB) });
+    const { error } = await sb.from('meno15_push').upsert({ endpoint: sub.endpoint, user_id: sbUser.id, sub: sub.toJSON() });
+    if (error) throw error;
+    S.notifOn = true; save(); sbPush();
+    toast('Notifiche attive! Ti mando una prova.');
+    setTimeout(notifTest, 1500);
+  } catch (e) { toast('Non sono riuscito ad attivarle: riprova tra poco.'); }
+  rerenderSheet();
+}
+async function notifOff(){
+  try { const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (sub) { await sb.from('meno15_push').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); } } catch (e) {}
+  S.notifOn = false; save(); toast('Notifiche disattivate'); rerenderSheet();
+}
+async function notifTest(){
+  try { const { data, error } = await sb.functions.invoke('meno15-push', { body: { mode: 'test' } }); if (error || !data || !(data.esiti || []).includes('ok')) toast('La prova non è partita: disattiva e riattiva le notifiche.'); else toast('Prova inviata: arriva tra pochi secondi.'); }
+  catch (e) { toast('Sei offline: riprova quando c\'è rete.'); }
+}
+function rerenderSheet(){ const c = document.getElementById('notif-card'); if (c) c.outerHTML = notifCard(); }
+// le notifiche dei prossimi 7 giorni: le calcola l'app, il server le manda all'ora giusta
+function buildPushPlan(){
+  if (!S.notifOn || !S.profilo.inizio) return [];
+  const out = [], nome = S.profilo.nome ? ' ' + S.profilo.nome : '', sr = serie().n, A = allenamento();
+  const at = (k, min) => (min == null || min < 0 || min >= 1440) ? null : k + 'T' + pad(Math.floor(min / 60)) + ':' + pad(min % 60);
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(new Date(), i), k = keyOf(d), T = TURNI[turnoOf(d)], m = mealsFor(d), pool = S.profilo.piscina.includes(dow(d)), sf = sfidaDi(mondayOf(d));
+    const add = (cat, min, t, b, c, n) => { const a = at(k, min); if (a) out.push(Object.assign({ k: k + ':' + cat, at: a, cat, t, b, d: k }, c ? { c, n } : {})); };
+    const col = toMin(T.col);
+    add('mattina', col, 'Buongiorno' + nome + ' ☀️', 'Colazione: ' + (R[m.col] ? R[m.col].n : '') + '. Sfida della settimana: «' + sf.t + '», ' + sf.d + '.');
+    if (dow(d) === 0) add('peso', col - 10, 'Giorno della bilancia ⚖️', 'Appena sveglio, prima di colazione: pesati e segnalo nell\'app. È il tuo punto della settimana.', 'peso');
+    add('acqua', 15 * 60, 'Acqua 💧', 'Sei indietro con l\'acqua: bevi due bicchieri adesso e segnali. Tiene buona anche la fame.', 'acqua', 4);
+    if (pool) add('piscina', A.pre - 10, 'Stasera piscina 🏊', 'Ora lo spuntino pre-allenamento: ' + (R[m.mer] ? R[m.mer].n : '') + '. Porta la bottiglietta d\'acqua.');
+    else if (R[m.mer]) add('raptus', toMin(T.mer) - 20, 'Ora dei raptus 🍪', 'Tra poco la merenda: ' + R[m.mer].n + '. Se la fame arriva prima, apri «Ho fame» invece della credenza: vale 5 punti.');
+    const dm = addDays(d, 1), Tm = TURNI[turnoOf(dm)], mm = mealsFor(dm);
+    if (Tm.porta.includes('pra') && R[mm.pra] && !['lpz','fle'].includes(mm.pra) && !S.fatti[keyOf(dm) + ':pra']) add('prepara', 21 * 60 + 15, 'Pranzo di domani 🍱', 'Preparalo stasera: ' + R[mm.pra].n + '. Domani niente improvvisazioni.');
+    const ser = toMin(T.ser);
+    add('giornata', ser != null && ser > 19 * 60 ? ser - 30 : 21 * 60 + 30, 'La serie è in gioco 🔥', 'Non hai ancora segnato i pasti di oggi. Segnali adesso' + (i === 0 && sr ? ' per tenere la serie di ' + sr + (sr === 1 ? ' giorno.' : ' giorni.') : ': ogni giornata nel piano allunga la serie.'), 'giornata', 3);
+    if (dow(d) === 6) add('settimana', 19 * 60, 'Ultimo giorno della sfida 🏆', '«' + sf.t + '»: hai tempo fino a stasera. Domani parte la sfida nuova.');
+  }
+  const now = keyOf(new Date()) + 'T' + pad(new Date().getHours()) + ':' + pad(new Date().getMinutes());
+  return out.filter(x => x.at >= now.slice(0, 10) + 'T00:00').sort((a, b) => a.at.localeCompare(b.at));
+}
+
 /* ---------------- Ho mangiato altro: valutazione e compensazione ---------------- */
 const SLOT_KCAL = { col:350, spu:90, pra:550, mer:175, cen:550, ser:80 };
 const VOTO = { bene:['Va bene','#E3F4EC','#0B5F3A'], cosi:['Così così','#FFF1D6','#7A4B00'], fuori:['Fuori piano','#FDE3DC','#8A3A0E'] };
@@ -2126,6 +2336,7 @@ function viewProgressi(){
   h += vitaCard();
   h += panciaProgressCard();
   h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-riep="0" style="min-height:52px">La tua settimana</button><button class="opt" data-report style="min-height:52px">Riepilogo per il medico</button></div>';
+  h += '<button class="btn sec2" data-sfide>Sfide e medaglie (' + Object.keys(S.medaglie).length + ' su ' + MEDAGLIE.length + ')</button>';
   h += '<button class="btn sec2" data-nutri>Guida: mangiare bilanciato</button>';
   // fase
   if (S.fase === 'dimagrimento') {
@@ -2202,6 +2413,7 @@ function openSettings(){
   const p = S.profilo;
   let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Impostazioni</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
   h += accountCard();
+  h += notifCard();
   h += '<div class="card stack">';
   h += '<label class="f">Data obiettivo<input type="date" id="st-wed" value="' + esc(p.matrimonio) + '"></label>';
   h += '<div class="tip" id="st-pace" style="margin-top:-2px"></div>';
@@ -2252,6 +2464,7 @@ function render(){
   $('#app').innerHTML = v();
   if (keepQ != null && $('#aiq')) $('#aiq').value = keepQ;
   tickTimer();
+  if (tab === 'oggi') { try { festeggia(); } catch (e) {} }
 }
 
 /* ---------------- Eventi ---------------- */
@@ -2338,6 +2551,11 @@ document.addEventListener('click', async (e) => {
   if (d.sost) { askSost(d.sost); return; }
   if (d.guida !== undefined) { openGuida(); return; }
   if (d.nutri !== undefined) { openNutri(); return; }
+  if (d.sfide !== undefined) { openSfide(); return; }
+  if (d.notifcat) { if (t.checked) delete S.notif[d.notifcat]; else S.notif[d.notifcat] = false; save(); return; }
+  if (d.notifon !== undefined) { notifOn(); return; }
+  if (d.notifoff !== undefined) { notifOff(); return; }
+  if (d.notiftest !== undefined) { notifTest(); return; }
   if (d.noingr) { openNoIngr(d.noingr); return; }
   if (d.pickpra && d.date) { S.swaps[d.date + ':pra'] = d.pickpra; save(); closeSheet(); render(); toast('Pranzo di domani: ' + R[d.pickpra].n); return; }
   if (d.casaopen !== undefined) { casaMsg = ''; openCasa(); return; }
