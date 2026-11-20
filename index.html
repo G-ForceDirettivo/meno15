@@ -363,7 +363,7 @@ async function sbPush(){
   if (sbBusy) { sbAgain = true; return; }
   sbBusy = true;
   try {
-    try { S.pushPlan = buildPushPlan(); } catch (e) {}
+    try { S.pushPlan = buildPushPlan(); S.pushTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Rome'; } catch (e) {}
     const { error } = await sb.from('meno15_stato').upsert({ user_id: sbUser.id, dati: JSON.parse(JSON.stringify(S)), aggiornato: new Date().toISOString() });
     if (error) sbErr = 'Salvataggio online non riuscito: riprovo alla prossima modifica.'; else { sbErr = ''; sbLast = Date.now(); }
   } catch (e) { sbErr = 'Sei offline: salvo online appena torna la rete.'; }
@@ -1673,7 +1673,7 @@ async function notifOn(){
     S.notifOn = true; save(); sbPush();
     toast('Notifiche attive! Ti mando una prova.');
     setTimeout(notifTest, 1500);
-  } catch (e) { toast('Non sono riuscito ad attivarle: riprova tra poco.'); }
+  } catch (e) { toast('Non sono riuscito ad attivarle (' + String((e && (e.message || e.name)) || e).slice(0, 80) + '). Riprova tra poco.'); }
   rerenderSheet();
 }
 async function notifOff(){
