@@ -85,7 +85,7 @@ h1,h2,h3{font-family:'Space Grotesk',Inter,sans-serif;margin:0}
 .opt.on.or{background:var(--orange);border-color:var(--orange)}
 .opt.on.gr{background:var(--green-l);color:var(--green-d);border-color:var(--green)}
 .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:6px 4px calc(8px + env(safe-area-inset-bottom)) 4px;z-index:20}
-.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
 .tab{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:500;color:var(--muted);min-height:52px;justify-content:center;cursor:pointer}
 .tab svg{width:22px;height:22px;padding:4px 14px;box-sizing:content-box;border-radius:999px}
 .tab.on{color:var(--green-d);font-weight:700}
@@ -717,9 +717,11 @@ function chipClass(name){
 
 /* ---------------- Navigazione ---------------- */
 let tab = 'oggi', selDay = null, selWeekOffset = 0;
-const TABS = [['oggi','Oggi',ICON.clock],['settimana','Settimana',ICON.cal],['fame','Ho fame',ICON.hunger],['fuori','Fuori',ICON.out],['progressi','Progressi',ICON.chart]];
+const TABS = [['oggi','Oggi',ICON.clock],['settimana','Settimana',ICON.cal],['aiuto','Aiuto',ICON.flame],['progressi','Progressi',ICON.chart]];
 function renderTabs(){
-  $('#tabs').innerHTML = TABS.map(([id, l, ic]) => '<button class="tab' + (tab === id ? ' on' : '') + '" data-tab="' + id + '" aria-label="' + l + '"' + (tab === id ? ' aria-current="page"' : '') + '>' + ic + '<span>' + l + '</span></button>').join('');
+  $('#tabs').innerHTML = TABS.map(([id, l, ic]) => id === 'aiuto'
+    ? '<button class="tab" data-aiuto aria-label="Aiuto: fame, fuori casa, ingredienti" style="color:#C2410C">' + ic + '<span>Aiuto</span></button>'
+    : '<button class="tab' + (tab === id ? ' on' : '') + '" data-tab="' + id + '" aria-label="' + l + '"' + (tab === id ? ' aria-current="page"' : '') + '>' + ic + '<span>' + l + '</span></button>').join('');
 }
 function go(t){ tab = t; render(); window.scrollTo(0, 0); }
 function toast(msg){
@@ -761,31 +763,28 @@ function viewOggi(){
   h += '<div class="bar"><i style="width:' + pct + '%"></i></div><span class="small mut">−' + fmtKg(persi) + ' di ' + fmtKg(tot) + ' kg · ' + (S.pesi.length > 1 ? 'pesata del ' + fmtDate(parseKey(S.pesi[S.pesi.length - 1].d)) : 'pesati il lunedì mattina') + '</span></div>';
   h += ringSvg(daysLeft, totDays) + '</div></div>';
   if (isFeste(today)) h += '<div class="tip o">' + ICON.info + '<span><b>Periodo delle feste.</b> Fino al 6 gennaio l\'obiettivo è non ingrassare: arrivare al 7 gennaio con lo stesso peso è già una vittoria.</span></div>';
-  h += '<div class="seg seg5" style="grid-template-columns:repeat(5,minmax(0,1fr))" aria-label="Turno di oggi">';
-  Object.keys(TURNI).forEach(t => { h += '<button class="opt' + (turnoOf(today) === t ? ' on' : '') + '" data-turno="' + t + '" data-day="' + k + '">' + TURNI[t].l + '</button>'; });
-  h += '</div>';
-  h += '<button class="linkbtn" data-turni="' + keyOf(mondayOf(today)) + '" style="align-self:flex-end;margin-top:-8px">Imposta i turni della settimana →</button>';
+  h += '<button class="linkbtn" data-turni="' + keyOf(mondayOf(today)) + '" style="align-self:flex-end;margin-top:-8px">Turno di oggi: ' + TURNI[turnoOf(today)].l + ' · cambia →</button>';
   const ieri = keyOf(addDays(today, -1));
   if (p.inizio && ieri >= p.inizio && !S.cele['ieri:' + ieri] && !activeSlots().some(x => S.fatti[ieri + ':' + x] || S.mangiato[ieri + ':' + x]))
     h += '<div class="card stack" style="border-color:#E0A43A"><span style="font-size:14px"><b>Ieri non hai segnato i pasti.</b> Hai seguito il piano?</span><div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt on" data-tuttook="' + ieri + '">Sì, segna tutto</button><button class="opt" data-ierino="' + ieri + '">No, lascia così</button></div></div>';
   h += cholTip();
-  h += sfidaCard();
+  h += checkLunedi();
+  h += sfidaMini();
+  h += '<button class="btn pri" data-dimmi style="min-height:58px;font-size:17px">🍽️ Dimmi cosa hai mangiato</button>';
   h += '<div class="sec"><h2>Cosa mangi oggi</h2><span class="small mut">' + (regole() ? 'cosa e quanto' : 'tocca per la ricetta') + '</span></div>';
   h += regole() ? regoleCards(today) : mealCards(today);
   const nonSegnati = activeSlots().filter(x => x !== 'ser' && !S.fatti[k + ':' + x]);
-  if (nonSegnati.length >= 2 && today.getHours() >= 12) h += '<button class="btn sec2" data-tuttook="' + k + '">✓ Ho seguito il piano oggi: segna tutti i pasti</button>';
-  if (i === 6 || i === 0) h += '<button class="card meal" data-riep="' + (i === 0 ? -1 : 0) + '" style="border-color:#E0A43A"><span class="lab">' + (i === 0 ? 'La settimana appena finita' : 'Fine settimana') + '</span><span class="dish">Guarda il tuo riepilogo</span><span class="small mut">Peso, pasti, acqua, raptus e un consiglio per la prossima settimana</span></button>';
-  if (pool) h += trainingCard(today);
-  h += drinkCard(k);
+  if (nonSegnati.length >= 2 && today.getHours() >= 19) h += chiediCard(k);
+  else if (nonSegnati.length >= 2 && today.getHours() >= 12) h += '<button class="btn sec2" data-tuttook="' + k + '">✓ Ho seguito il piano oggi: segna tutti i pasti</button>';
+  h += jollyLine();
+  if (false) h += '<button class="card meal" data-riep="' + (i === 0 ? -1 : 0) + '" style="border-color:#E0A43A"><span class="lab">' + (i === 0 ? 'La settimana appena finita' : 'Fine settimana') + '</span><span class="dish">Guarda il tuo riepilogo</span><span class="small mut">Peso, pasti, acqua, raptus e un consiglio per la prossima settimana</span></button>';
+  if (pool) h += aperti.has(k + ':allinfo') ? trainingCard(today) + '<button class="linkbtn" data-apri="allinfo" data-date="' + k + '" style="align-self:flex-end;margin-top:-6px">Chiudi i dettagli</button>' : trainingMini(today);
+  h += S.profilo.bevExtra ? drinkCard(k) : acquaCard(k);
   const tom = addDays(today, 1), mt = mealsFor(tom);
   if (regole()) {
-    h += fameCard();
     if (TURNI[turnoOf(tom)].porta.includes('pra') && !['lpz', 'fle'].includes(mt.pra)) h += '<div class="card stack" style="border:1.5px dashed #C9D3CD;box-shadow:none;background:transparent"><span class="lab">Stasera prepara il pranzo di domani</span><span style="font-size:14px">' + esc(corto(tom, 'pra')) + ': cucina un po\' di carboidrati in più a cena e mettili da parte, aggiungi la proteina e le verdure.</span></div>';
   } else
   h += '<div class="card stack" style="border:1.5px dashed #C9D3CD;box-shadow:none;background:transparent"><span class="lab">Stasera prepara</span><button class="meal" style="background:none;padding:0" data-recipe="' + mt.pra + '" data-date="' + keyOf(tom) + '" data-slot="pra"><span class="dish">' + esc(R[mt.pra].n) + '</span><span class="small mut">Pranzo di ' + GIORNI[dow(tom)].toLowerCase() + (R[mt.pra].min ? ' · ' + R[mt.pra].min + ' minuti' : '') + '</span>' + (availChip(mt.pra) ? '<span class="chips">' + availChip(mt.pra) + '</span>' : '') + '</button><button class="btn sec2 sm" data-noingr="' + keyOf(tom) + '">Non ho gli ingredienti</button></div>';
-  if (!regole()) h += panciaCard(k);
-  h += festaSeg(k);
-  h += '<button class="btn hot" data-go="fame">' + ICON.flame + ' Ho fame adesso</button>';
   return h;
 }
 const aperti = new Set();
@@ -795,16 +794,16 @@ function mealCards(date){
   let h = '<div class="stack" style="gap:10px">';
   activeSlots().forEach(s => {
     const id = meals[s], r = R[id], info = slotInfo(date, s), done = S.fatti[k + ':' + s], ic = SLOTICO[s];
-    if (done && !aperti.has(k + ':' + s)) {
+    if ((done || (nextS && s !== nextS)) && !aperti.has(k + ':' + s)) {
       const me0 = S.mangiato[k + ':' + s];
-      h += '<div class="card" style="padding:8px 12px;opacity:.8"><div class="mc-head" style="gap:10px"><span class="slotico" style="width:30px;height:30px;background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><button data-apri="' + s + '" data-date="' + k + '" style="all:unset;flex:1;cursor:pointer;min-height:40px;display:flex;align-items:center;gap:6px;overflow:hidden"><b style="font-size:14px;white-space:nowrap">' + SLOTNAME[s] + '</b><span class="small mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(me0 ? (me0.piatto || me0.testo) + (me0.pending ? ' · da valutare' : '') : r.n) + '</span></button><button class="checkbtn on" data-done="' + s + '" data-date="' + k + '" aria-label="Mangiato, tocca per annullare" aria-pressed="true">' + ICON.check + '</button></div></div>';
+      h += '<div class="card" style="padding:8px 12px;' + (done ? 'opacity:.8' : '') + '"><div class="mc-head" style="gap:10px"><span class="slotico" style="width:30px;height:30px;background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><button data-apri="' + s + '" data-date="' + k + '" style="all:unset;flex:1;cursor:pointer;min-height:40px;display:flex;align-items:center;gap:6px;overflow:hidden"><b style="font-size:14px;white-space:nowrap">' + SLOTNAME[s] + (done ? '' : ' <span class="small mut" style="font-weight:400">' + info.time + '</span>') + '</b><span class="small mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(me0 ? (me0.piatto || me0.testo) + (me0.pending ? ' · da valutare' : '') : r.n) + '</span></button><button class="checkbtn' + (done ? ' on' : '') + '" data-done="' + s + '" data-date="' + k + '" aria-label="' + (done ? 'Mangiato, tocca per annullare' : 'Segna come mangiato') + '" aria-pressed="' + (done ? 'true' : 'false') + '">' + ICON.check + '</button></div></div>';
       return;
     }
     const chips = r.i.slice(0, 4).map(([n, q]) => '<span class="chip ' + chipClass(n) + '">' + esc(q.length < 22 ? q + ' ' + lowFirst(shortName(n)) : shortName(n)) + '</span>').join('');
     const gf = (s === 'cen' && S.profilo.compagnaCeliaca && r.sg) ? (r.sg === 'si' ? '<span class="chip v">Va bene anche per lei</span>' : r.sg === 'adatta' ? '<span class="chip c">Per lei: versione senza glutine</span>' : '') : '';
     h += '<div class="card mc"' + (done ? ' style="opacity:.62"' : s === nextS ? ' style="border:2px solid var(--green)"' : '') + '>';
     if (s === nextS) h += '<span class="pill" style="align-self:flex-start;margin-bottom:-4px">Il prossimo</span>';
-    if (done) h += '<button class="linkbtn" data-apri="' + s + '" data-date="' + k + '" style="align-self:flex-end;margin-bottom:-6px">Chiudi</button>';
+    if (aperti.has(k + ':' + s)) h += '<button class="linkbtn" data-apri="' + s + '" data-date="' + k + '" style="align-self:flex-end;margin-bottom:-6px">Chiudi</button>';
     h += '<div class="mc-head"><span class="slotico" style="background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><div class="mc-when"><b>' + SLOTNAME[s] + ' · ' + info.time + '</b><span class="small mut">' + esc(info.note || '') + '</span></div>';
     h += '<button class="checkbtn' + (done ? ' on' : '') + '" data-done="' + s + '" data-date="' + k + '" aria-label="' + (done ? 'Mangiato, tocca per annullare' : 'Segna come mangiato') + '" aria-pressed="' + (done ? 'true' : 'false') + '">' + ICON.check + '</button></div>';
     const me = S.mangiato[k + ':' + s];
@@ -1392,9 +1391,11 @@ function dayScore(k){
   const acq = b.acqua || 0;
   max += 10; got += acq >= 8 ? 10 : acq >= 6 ? 5 : 0;
   if (acq < 8) manca.push((8 - acq) + (8 - acq === 1 ? ' bicchiere' : ' bicchieri') + ' d\'acqua');
-  max += 10;
-  const segnato = b.acqua != null || b.gas != null || b.caffe != null;
-  if (segnato) { if ((b.gas || 0) <= gasLimit()) got += 5; if ((b.caffe || 0) <= 3) got += 5; }
+  if (S.profilo.bevExtra) {
+    max += 10;
+    const segnato = b.acqua != null || b.gas != null || b.caffe != null;
+    if (segnato) { if ((b.gas || 0) <= gasLimit()) got += 5; if ((b.caffe || 0) <= 3) got += 5; }
+  }
   if (pool) { max += 10; if (S.fatti[k + ':all']) got += 10; else manca.push('allenamento'); }
   const rap = S.fame.filter(x => keyOf(new Date(x.t)) === k).length;
   const bonus = Math.min(10, rap * 5);
@@ -1548,14 +1549,14 @@ function regoleCards(date){
   let h = '<div class="stack" style="gap:10px">';
   activeSlots().forEach(s => {
     const info = slotInfo(date, s), done = S.fatti[k + ':' + s], ic = SLOTICO[s], me = S.mangiato[k + ':' + s];
-    if (done && !aperti.has(k + ':' + s)) {
-      h += '<div class="card" style="padding:8px 12px;opacity:.8"><div class="mc-head" style="gap:10px"><span class="slotico" style="width:30px;height:30px;background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><button data-apri="' + s + '" data-date="' + k + '" style="all:unset;flex:1;cursor:pointer;min-height:40px;display:flex;align-items:center;gap:6px;overflow:hidden"><b style="font-size:14px;white-space:nowrap">' + SLOTNAME[s] + '</b><span class="small mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(me ? (me.piatto || me.testo) + (me.pending ? ' · da valutare' : '') : corto(date, s)) + '</span></button><button class="checkbtn on" data-done="' + s + '" data-date="' + k + '" aria-label="Mangiato, tocca per annullare" aria-pressed="true">' + ICON.check + '</button></div></div>';
+    if ((done || (nextS && s !== nextS)) && !aperti.has(k + ':' + s)) {
+      h += '<div class="card" style="padding:8px 12px;' + (done ? 'opacity:.8' : '') + '"><div class="mc-head" style="gap:10px"><span class="slotico" style="width:30px;height:30px;background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><button data-apri="' + s + '" data-date="' + k + '" style="all:unset;flex:1;cursor:pointer;min-height:40px;display:flex;align-items:center;gap:6px;overflow:hidden"><b style="font-size:14px;white-space:nowrap">' + SLOTNAME[s] + (done ? '' : ' <span class="small mut" style="font-weight:400">' + info.time + '</span>') + '</b><span class="small mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(me ? (me.piatto || me.testo) + (me.pending ? ' · da valutare' : '') : corto(date, s)) + '</span></button><button class="checkbtn' + (done ? ' on' : '') + '" data-done="' + s + '" data-date="' + k + '" aria-label="' + (done ? 'Mangiato, tocca per annullare' : 'Segna come mangiato') + '" aria-pressed="' + (done ? 'true' : 'false') + '">' + ICON.check + '</button></div></div>';
       return;
     }
     const f = formula(date, s);
     h += '<div class="card mc"' + (s === nextS ? ' style="border:2px solid var(--green)"' : '') + '>';
     if (s === nextS) h += '<span class="pill" style="align-self:flex-start;margin-bottom:-4px">Il prossimo</span>';
-    if (done) h += '<button class="linkbtn" data-apri="' + s + '" data-date="' + k + '" style="align-self:flex-end;margin-bottom:-6px">Chiudi</button>';
+    if (aperti.has(k + ':' + s)) h += '<button class="linkbtn" data-apri="' + s + '" data-date="' + k + '" style="align-self:flex-end;margin-bottom:-6px">Chiudi</button>';
     h += '<div class="mc-head"><span class="slotico" style="background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><div class="mc-when"><b>' + SLOTNAME[s] + ' · ' + info.time + '</b><span class="small mut">' + esc(info.note || '') + '</span></div>';
     h += '<button class="checkbtn' + (done ? ' on' : '') + '" data-done="' + s + '" data-date="' + k + '" aria-label="' + (done ? 'Mangiato, tocca per annullare' : 'Segna come mangiato') + '" aria-pressed="' + (done ? 'true' : 'false') + '">' + ICON.check + '</button></div>';
     if (me) {
@@ -1632,6 +1633,97 @@ function spesaRegole(mk){
   if (due && gf) { add('Pasta senza glutine (per lei)', 'sg', Math.max(1, Math.round(cnt.legumi / 2))); add('Pane senza glutine (per lei)', 'sg', 2); }
   Object.keys(items).forEach(n => { const c = canonOf(n); if (S.casa && c.length && c.every(x => S.casa[x])) items[n].rep = 'casa'; });
   return { monday, items, due };
+}
+
+/* ---------------- Home semplice: sfida in una riga, acqua, serata libera, check del lunedì ---------------- */
+function trainingMini(date){
+  const A = allenamento(), k = keyOf(date), fatto = !!S.fatti[k + ':all'];
+  let h = '<div class="card stack" style="padding:12px 14px;border-color:#9CC3E4"><div class="between"><b style="font-size:15px">🏊 Allenamento ' + esc(A.ora) + '</b><button class="linkbtn" data-apri="allinfo" data-date="' + k + '">Dettagli</button></div>';
+  h += '<span class="small">Spuntino pre-allenamento alle <b>' + hm(A.pre) + '</b>, bottiglietta d\'acqua con te, cena entro un\'ora dopo. Niente premi extra: è già nel piano.</span>';
+  h += '<button class="btn ' + (fatto ? 'sec2' : 'pri') + ' sm" data-done="all" data-date="' + k + '">' + (fatto ? '✓ Fatto (tocca per annullare)' : 'Segna allenamento fatto · +10 punti') + '</button></div>';
+  return h;
+}
+function sfidaMini(){
+  if (!S.profilo.inizio) return '';
+  const ds = dayScore(keyOf(new Date())), sr = serie(), sf = sfidaDi(mondayOf(new Date()));
+  const col = ds.p >= SOGLIA ? 'var(--green)' : '#E0A43A';
+  return '<button class="card" data-sfide style="padding:10px 14px;display:flex;flex-direction:column;gap:6px;text-align:left"><div class="between" style="font-size:14px"><span><b style="font-size:18px;color:' + (ds.p >= SOGLIA ? 'var(--green-d)' : '#8A3A0E') + '">' + ds.p + '</b><span class="small mut">/100 oggi</span></span><span><b>🔥 ' + sr.n + '</b> <span class="small mut">di fila</span></span><span><b>🏆 ' + (sf.vinta ? '✓' : sf.p + '/' + sf.n) + '</b></span></div><div class="bar" style="background:#ECEFED;height:6px"><i style="width:' + Math.max(3, ds.p) + '%;background:' + col + '"></i></div></button>';
+}
+function acquaCard(k){
+  const a = (S.bevande[k] || {}).acqua || 0;
+  let h = '<div class="card" style="padding:10px 14px"><div class="drink" style="padding:0"><div><b>💧 Acqua</b><div class="dots">';
+  for (let n = 0; n < 8; n++) h += '<i class="' + (n < a ? 'on' : '') + '"></i>';
+  h += '</div></div><div class="stepper"><button data-drink="acqua" data-delta="-1" aria-label="Un bicchiere d\'acqua in meno">−</button><b>' + a + '</b><button data-drink="acqua" data-delta="1" aria-label="Un bicchiere d\'acqua in più">+</button></div></div></div>';
+  return h;
+}
+function chiediCard(k){
+  return '<div class="card stack" style="border:2px solid var(--green)"><b style="font-size:16px">Com\'è andata oggi?</b><div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt on" data-tuttook="' + k + '">✓ Ho seguito il piano</button><button class="opt" data-dimmi>✗ Ti dico cosa</button></div></div>';
+}
+function openChiedi(k){
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Com\'è andata oggi?</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<button class="btn pri" data-tuttook="' + k + '" style="min-height:58px">✓ Ho seguito il piano</button>';
+  h += '<button class="btn sec2" data-dimmi style="min-height:58px">✗ No: ti dico cosa ho mangiato</button>';
+  sheet(h);
+}
+function giornoJolly(date){ return pizzaDayFor(mondayOf(date)); }
+function jollyLine(){
+  const today = new Date(), mon = mondayOf(today), jd = giornoJolly(today), jDate = addDays(mon, jd);
+  let extra = 0;
+  for (let i = 0; i < 7; i++) { const kk = keyOf(addDays(mon, i)); if (i === jd) continue; ['pra','cen'].forEach(sl => { const me = S.mangiato[kk + ':' + sl]; if (me && me.voto === 'fuori') extra++; }); }
+  const usata = keyOf(jDate) < keyOf(today) || (keyOf(jDate) === keyOf(today) && !!S.fatti[keyOf(today) + ':cen']);
+  let h = '<button class="card" data-jollysel style="padding:10px 14px;text-align:left;display:flex;flex-direction:column;gap:2px"><span style="font-size:14px">🃏 Serata libera: <b>' + GIORNI[jd].toLowerCase() + '</b>' + (usata ? ' · usata' : '') + ' <span class="small mut">· cambia</span></span>';
+  if (extra) h += '<span class="small" style="color:#8A3A0E">Sgarri fuori dalla serata libera questa settimana: ' + extra + '. Da qui alla domenica, piano pulito.</span>';
+  else h += '<span class="small mut">Una sola a settimana (pizza, sushi o cena fuori): le altre sere piano normale.</span>';
+  return h + '</button>';
+}
+function openJollySel(){
+  const today = new Date(), mon = mondayOf(today), jd = giornoJolly(today);
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Serata libera</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<span class="small mut">Scegli la sera della settimana in cui mangi quello che vuoi (con misura): pizza, sushi o cena fuori. Quel giorno il pranzo è leggero e la sera non si compensa niente.</span><div class="stack" style="gap:6px">';
+  for (let i = 0; i < 7; i++) { const d = addDays(mon, i), past = keyOf(d) < keyOf(today); h += '<button class="opt' + (i === jd ? ' on' : '') + '" data-jollyday="' + i + '"' + (past ? ' disabled style="opacity:.45"' : '') + ' style="min-height:46px">' + GIORNI[i] + ' ' + fmtDate(d) + '</button>'; }
+  h += '</div>';
+  sheet(h);
+}
+function spostaJolly(i){
+  const today = new Date(), mk = keyOf(mondayOf(today)), oggi = keyOf(today);
+  S.pizzaSettimana[mk] = Number(i);
+  Object.keys(S.swaps).forEach(kk => { const day = kk.split(':')[0]; if (keyOf(mondayOf(parseKey(day))) === mk && day >= oggi && /:(pra|cen|mer)$/.test(kk)) delete S.swaps[kk]; });
+  save();
+}
+function checkLunedi(){
+  const today = new Date(), mon = mondayOf(today), mk = keyOf(mon), p = S.profilo;
+  if (!p.inizio || mk <= p.inizio || S.cele['check:' + mk] || dow(today) > 2) return '';
+  const prev = addDays(mon, -7); let nel = 0, fuori = 0;
+  for (let i = 0; i < 7; i++) { const kk = keyOf(addDays(prev, i)); if (kk < p.inizio) continue; if (dayScore(kk).p >= SOGLIA) nel++; SLOTS.forEach(sl => { const me = S.mangiato[kk + ':' + sl]; if (me && me.voto === 'fuori') fuori++; }); }
+  const pw = S.pesi.filter(w => w.d < mk), pOggi = S.pesi.find(w => w.d >= mk);
+  let h = '<div class="card stack" style="border:2px solid #E0A43A"><span class="lab">📋 Check della settimana</span>';
+  h += '<ul class="clean" style="gap:4px"><li><span style="min-width:150px">Giornate nel piano</span><b>' + nel + ' su 7</b></li><li><span style="min-width:150px">Pasti fuori piano</span><b>' + fuori + '</b></li>';
+  if (pOggi && pw.length) { const dlt = pOggi.kg - pw[pw.length - 1].kg; h += '<li><span style="min-width:150px">Peso</span><b>' + (dlt <= 0 ? '−' : '+') + fmtKg(Math.abs(dlt)) + ' kg</b></li>'; }
+  h += '</ul>';
+  if (!pOggi) h += '<span style="font-size:14px"><b>Pesati</b>: appena sveglio, prima di colazione.</span><div class="row" style="gap:8px"><input id="kg" type="text" inputmode="decimal" placeholder="es. 101,4" style="flex:1"><button class="btn pri sm" id="addkg">Salva</button></div>';
+  else if (pw.length && pOggi.kg > pw[pw.length - 1].kg) h += '<span class="small mut">Peso in su dopo un weekend pieno? È soprattutto acqua e sale: con 3-4 giorni di piano torna giù.</span>';
+  h += '<span style="font-size:14px">🃏 La serata libera di questa settimana: <b>' + GIORNI[giornoJolly(today)].toLowerCase() + '</b> <button class="linkbtn" data-jollysel style="display:inline">cambia</button></span>';
+  h += '<button class="btn sec2" data-checkok="' + mk + '">Fatto, si parte</button></div>';
+  return h;
+}
+function indovinaPasto(){
+  const today = new Date(), k = keyOf(today), now = today.getHours() * 60 + today.getMinutes();
+  const sl = activeSlots().filter(x => !S.mangiato[k + ':' + x]);
+  let best = sl[0] || 'pra', bd = Infinity;
+  sl.forEach(x => { const t = toMin(slotInfo(today, x).time); if (t == null) return; let d = now >= t ? now - t : (t - now) * 2.5; if (['spu','mer','ser'].includes(x)) d = d * 3 + 30; if (S.fatti[k + ':' + x]) d += 240; if (d < bd) { bd = d; best = x; } });
+  return best;
+}
+function openAiuto(){
+  const k = keyOf(new Date()), nx = indovinaPasto();
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Aiuto</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<button class="btn hot" data-aiutogo="fame" style="min-height:56px">' + ICON.flame + ' Ho fame adesso</button>';
+  h += '<button class="btn sec2" data-aiutogo="fuori" style="min-height:52px">🍽️ Mangio fuori: cosa ordino</button>';
+  h += '<button class="btn sec2" data-pianob="' + nx + '" data-date="' + k + '" style="min-height:52px">🛒 Non ho gli ingredienti: cosa compro</button>';
+  h += '<button class="btn sec2" data-pianoc="' + nx + '" data-date="' + k + '" style="min-height:52px">🧊 Ho questo in casa: cosa preparo</button>';
+  h += '<button class="btn sec2" data-aiutostress style="min-height:52px">😮‍💨 Sono stressato</button>';
+  h += fameCard();
+  h += festaSeg(k);
+  sheet(h);
 }
 
 /* ---------------- Porzioni che si adattano al calo ---------------- */
@@ -1786,6 +1878,7 @@ const NOTIF = [
   ['prepara','Pranzo da preparare','la sera prima, quando lo porti al lavoro'],
   ['giornata','Serie in pericolo','la sera, se non hai segnato i pasti'],
   ['settimana','Fine sfida','domenica sera'],
+  ['jolly','Serata libera','venerdì sera, per il weekend'],
   ['medico','Controllo del colesterolo','quando è ora delle analisi']
 ];
 function pushPossibile(){ return typeof sb !== 'undefined' && !!sb && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
@@ -1847,7 +1940,9 @@ function buildPushPlan(){
     const dm = addDays(d, 1), Tm = TURNI[turnoOf(dm)], mm = mealsFor(dm);
     if (Tm.porta.includes('pra') && R[mm.pra] && !['lpz','fle'].includes(mm.pra) && !S.fatti[keyOf(dm) + ':pra']) add('prepara', 21 * 60 + 15, 'Pranzo di domani 🍱', 'Preparalo stasera: ' + (regole() ? corto(dm, 'pra').toLowerCase() : R[mm.pra].n) + '. Domani niente improvvisazioni.');
     const ser = toMin(T.ser);
-    add('giornata', ser != null && ser > 19 * 60 ? ser - 30 : 21 * 60 + 30, 'La serie è in gioco 🔥', 'Non hai ancora segnato i pasti di oggi. Segnali adesso' + (i === 0 && sr ? ' per tenere la serie di ' + sr + (sr === 1 ? ' giorno.' : ' giorni.') : ': ogni giornata nel piano allunga la serie.'), 'giornata', 3);
+    add('giornata', ser != null && ser > 19 * 60 ? ser - 30 : 21 * 60 + 30, 'Hai seguito il piano oggi? 🔥', 'Rispondi con un tocco' + (i === 0 && sr ? ' e tieni la serie di ' + sr + (sr === 1 ? ' giorno.' : ' giorni.') : '.'), 'giornata', 3);
+    if (out.length && out[out.length - 1].cat === 'giornata') out[out.length - 1].u = '?chiedi=' + k;
+    if (dow(d) === 4) add('jolly', 18 * 60, 'Weekend in arrivo 🃏', 'La serata libera di questa settimana è ' + GIORNI[giornoJolly(d)].toLowerCase() + '. Le altre sere: piano normale.');
     if (k === cholDue()) add('medico', 9 * 60 + 30, 'Controllo del colesterolo 🩺', 'È ora di rifare le analisi del sangue: prenota dal medico, poi segna il valore in Progressi.');
     if (dow(d) === 6) add('settimana', 19 * 60, 'Ultimo giorno della sfida 🏆', '«' + sf.t + '»: hai tempo fino a stasera. Domani parte la sfida nuova.');
   }
@@ -2012,7 +2107,9 @@ function openAltro(slot, dateKey, keep){
     if (me) alRes = me.pending ? { text: me.testo || '' } : { text: me.testo || '', res: me, salvato: true };
   }
   const main = slot === 'pra' || slot === 'cen';
-  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Ho mangiato altro</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  const scegli = alRes && alRes.scegli;
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">' + (scegli ? 'Dimmi cosa hai mangiato' : 'Ho mangiato altro') + '</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  if (scegli && !(alRes.res)) { h += '<div class="seg" style="grid-template-columns:repeat(3,minmax(0,1fr))">'; activeSlots().forEach(x => { h += '<button class="opt' + (x === slot ? ' on' : '') + '" data-altroslot="' + x + '" data-date="' + dateKey + '">' + SLOTNAME[x] + '</button>'; }); h += '</div>'; }
   h += '<span class="small mut">' + esc(SLOTNAME[slot]) + ' · il piano prevedeva: ' + esc(previstoTxt(dateKey, slot)) + '</span>';
   h += '<textarea id="al-text" placeholder="Scrivi cosa e quanto, come lo diresti a un amico. Es: carbonara al ristorante, piatto pieno, 2 fette di pane e una birra media">' + esc(alRes && alRes.text || '') + '</textarea>';
   h += '<label class="btn sec2" style="cursor:pointer"><input type="file" id="al-photo" accept="image/*" capture="environment" class="hidden">' + (alPhoto ? 'Cambia foto' : 'Oppure fotografa il piatto') + '</label>';
@@ -2040,6 +2137,12 @@ function openAltro(slot, dateKey, keep){
     if (x.errori && x.errori.length) h += '<span class="small" style="color:#8A3A0E"><b>Da migliorare:</b> ' + x.errori.map(esc).join(' · ') + '</span>';
     if (x.fb) h += '<span class="small" style="line-height:1.5">' + esc(x.fb) + '</span>';
     if (main && x.cat) h += '<span class="small mut">Conta come: ' + esc(CAT_LBL[x.cat] || x.cat) + (x.rossa ? ' (carne rossa o salumi)' : '') + '</span>';
+    if (main && x.voto === 'fuori') {
+      const dd = parseKey(dateKey), jd = giornoJolly(dd), jk = keyOf(addDays(mondayOf(dd), jd));
+      if (dow(dd) === jd) h += '<span class="small" style="color:var(--green-d);font-weight:600">🃏 È la tua serata libera: va bene così.</span>';
+      else if (jk > dateKey && !alRes.salvato) h += '<button class="btn sec2" data-usajolly="' + slot + '" data-date="' + dateKey + '">🃏 Usa adesso la serata libera (' + GIORNI[jd].toLowerCase() + ' diventa una sera normale)</button>';
+      else h += '<span class="small" style="color:#8A3A0E;font-weight:600">Hai già usato la serata libera di questa settimana: questo è un secondo sgarro. Lo compensiamo nei prossimi pasti.</span>';
+    }
     h += '</div>';
     if (pv) {
       h += '<div class="card stack"><span class="lab">Come ricalcolo</span>';
@@ -2109,9 +2212,10 @@ function erroreCoach(e){
 async function runAltro(slot, dateKey){
   const text = (($('#al-text') || {}).value || '').trim().slice(0, 800);
   if (!text && !alPhoto) { toast('Scrivi cosa hai mangiato, oppure fai una foto'); return; }
-  alRes = { text, busy: true }; openAltro(slot, dateKey, true);
-  try { const res = await valutaPasto(slot, dateKey, text, alPhoto); alRes = { text, res }; }
-  catch (e) { alRes = { text, err: erroreCoach(e) + ' Puoi riprovare tra poco.' }; }
+  const sc = alRes && alRes.scegli;
+  alRes = { text, busy: true, scegli: sc }; openAltro(slot, dateKey, true);
+  try { const res = await valutaPasto(slot, dateKey, text, alPhoto); alRes = { text, res, scegli: sc }; }
+  catch (e) { alRes = { text, err: erroreCoach(e) + ' Puoi riprovare tra poco.', scegli: sc }; }
   openAltro(slot, dateKey, true);
 }
 let inSospesoBusy = false, inSospesoUltimo = 0;
@@ -2790,6 +2894,7 @@ function openSettings(){
   const p = S.profilo;
   let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Impostazioni</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
   h += '<div id="modo-card">' + modoCard() + '</div>';
+  h += '<label class="row card" style="min-height:52px;font-size:14px;font-weight:600;padding:10px 14px"><input type="checkbox" data-bevextra style="width:22px;height:22px"' + (S.profilo.bevExtra ? ' checked' : '') + '> Segna anche caffè e Coca Zero (oltre all\'acqua)</label>';
   h += accountCard();
   h += notifCard();
   h += '<div class="card stack">';
@@ -2933,6 +3038,16 @@ document.addEventListener('click', async (e) => {
   if (d.guida !== undefined) { openGuida(); return; }
   if (d.nutri !== undefined) { openNutri(); return; }
   if (d.sfide !== undefined) { openSfide(); return; }
+  if (d.aiuto !== undefined) { openAiuto(); return; }
+  if (d.aiutogo) { closeSheet(); go(d.aiutogo); return; }
+  if (d.aiutostress !== undefined) { openStress(); return; }
+  if (d.dimmi !== undefined) { alPhoto = null; if (alPhotoUrl) URL.revokeObjectURL(alPhotoUrl); alPhotoUrl = ''; alRes = { scegli: true }; openAltro(indovinaPasto(), keyOf(new Date()), true); return; }
+  if (d.altroslot) { const tx = ($('#al-text') || {}).value || ''; alRes = { scegli: true, text: tx }; openAltro(d.altroslot, d.date, true); return; }
+  if (d.jollysel !== undefined) { openJollySel(); return; }
+  if (d.jollyday) { spostaJolly(d.jollyday); closeSheet(); render(); toast('Serata libera: ' + GIORNI[Number(d.jollyday)].toLowerCase()); return; }
+  if (d.usajolly) { spostaJolly(dow(parseKey(d.date))); render(); openAltro(d.usajolly, d.date, true); toast('Serata libera usata oggi'); return; }
+  if (d.checkok) { S.cele['check:' + d.checkok] = 1; save(); render(); toast('Buona settimana!'); return; }
+  if (d.bevextra !== undefined) { S.profilo.bevExtra = !S.profilo.bevExtra; save(); render(); return; }
   if (d.modo) { S.profilo.modo = d.modo; save(); render(); const c = document.getElementById('modo-card'); if (c) c.outerHTML = '<div id="modo-card">' + modoCard() + '</div>'; toast(d.modo === 'regole' ? 'Piano a regole semplici' : 'Piano con le ricette'); return; }
   if (d.prot) { const kk = d.date + ':' + d.slot; if (protDi(parseKey(d.date), d.slot) === d.prot && !S.protScelta[kk]) return; S.protScelta[kk] = d.prot; save(); render(); return; }
   if (d.idee) { openIdee(d.idee, d.date); return; }
@@ -3070,10 +3185,11 @@ document.addEventListener('change', async (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#layer').innerHTML) closeSheet(); });
 
-const LISTA_T = new URLSearchParams(location.search).get('lista');
+const LISTA_T = new URLSearchParams(location.search).get('lista'), CHIEDI = new URLSearchParams(location.search).get('chiedi');
 if (LISTA_T) vistaLista(LISTA_T);
 else {
 render();
+if (CHIEDI && /^\d{4}-\d{2}-\d{2}$/.test(CHIEDI)) { try { history.replaceState(null, '', location.pathname); } catch (e) {} setTimeout(() => openChiedi(CHIEDI), 300); }
 initCloud();
 if (window.supabase) sbInit(); else window.addEventListener('load', sbInit);
 }
