@@ -344,8 +344,9 @@ function sbInit(){
   try { sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'meno15-auth' } }); } catch (e) { sb = null; return; }
   sb.auth.getSession().then(({ data }) => { sbUser = data && data.session ? data.session.user : null; if (sbUser) sbPull(); else render(); }).catch(() => {});
   sb.auth.onAuthStateChange((ev, session) => { sbUser = session ? session.user : null; });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sbUser) { sbPull(); if (S.notifOn) setTimeout(sbSchedule, 4000); if (S.listaTok) setTimeout(() => listaCarica(keyOf(mondayOf(new Date()))), 5000); } });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sbUser) { sbPull(); caricaDieta(); if (S.notifOn) setTimeout(sbSchedule, 4000); if (S.listaTok) setTimeout(() => listaCarica(keyOf(mondayOf(new Date()))), 5000); } });
   setTimeout(() => { if (sbUser && S.notifOn) sbSchedule(); }, 6000);
+  setTimeout(() => { caricaDieta(); }, 2500);
 }
 async function sbPull(){
   if (!sb || !sbUser) return;
@@ -445,7 +446,10 @@ async function initCloud(){
 /* ---------------- Piano settimanale ---------------- */
 const SLOTS = ['col','spu','pra','mer','cen','ser'];
 const SLOTNAME = { col:'Colazione', spu:'Spuntino', pra:'Pranzo', mer:'Merenda', cen:'Cena', ser:'Fine serata' };
-function activeSlots(){ return S.profilo.spuntino === false ? SLOTS.filter(x => x !== 'spu') : SLOTS; }
+function activeSlots(d){
+  if (typeof coppia === 'function' && coppia(d)) { const g = dietaGiorno(d || new Date()); return SLOTS.filter(x => g[x]); }
+  return S.profilo.spuntino === false ? SLOTS.filter(x => x !== 'spu') : SLOTS;
+}
 function weekIndex(monday){ return Math.round((monday - mondayOf(parseKey('2026-11-16'))) / (7 * 864e5)); }
 function pizzaDayFor(monday){ const k = keyOf(monday); return (S.pizzaSettimana[k] != null) ? S.pizzaSettimana[k] : S.profilo.pizzaDay; }
 const planCache = {};
@@ -771,17 +775,19 @@ function viewOggi(){
   h += checkLunedi();
   h += sfidaMini();
   h += '<button class="btn pri" data-dimmi style="min-height:58px;font-size:17px">🍽️ Dimmi cosa hai mangiato</button>';
-  h += '<div class="sec"><h2>Cosa mangi oggi</h2><span class="small mut">' + (regole() ? 'cosa e quanto' : 'tocca per la ricetta') + '</span></div>';
-  h += regole() ? regoleCards(today) : mealCards(today);
+  h += '<div class="sec"><h2>Cosa mangi oggi</h2><span class="small mut">' + (coppia(today) ? 'settimana ' + (settimanaDieta(today) + 1) + ' del piano' : regole() ? 'cosa e quanto' : 'tocca per la ricetta') + '</span></div>';
+  h += coppia(today) ? coppiaCards(today) : regole() ? regoleCards(today) : mealCards(today);
   const nonSegnati = activeSlots().filter(x => x !== 'ser' && !S.fatti[k + ':' + x]);
   if (nonSegnati.length >= 2 && today.getHours() >= 19) h += chiediCard(k);
   else if (nonSegnati.length >= 2 && today.getHours() >= 12) h += '<button class="btn sec2" data-tuttook="' + k + '">✓ Ho seguito il piano oggi: segna tutti i pasti</button>';
-  h += jollyLine();
+  if (!coppia(today)) h += jollyLine();
   if (false) h += '<button class="card meal" data-riep="' + (i === 0 ? -1 : 0) + '" style="border-color:#E0A43A"><span class="lab">' + (i === 0 ? 'La settimana appena finita' : 'Fine settimana') + '</span><span class="dish">Guarda il tuo riepilogo</span><span class="small mut">Peso, pasti, acqua, raptus e un consiglio per la prossima settimana</span></button>';
   if (pool) h += aperti.has(k + ':allinfo') ? trainingCard(today) + '<button class="linkbtn" data-apri="allinfo" data-date="' + k + '" style="align-self:flex-end;margin-top:-6px">Chiudi i dettagli</button>' : trainingMini(today);
   h += S.profilo.bevExtra ? drinkCard(k) : acquaCard(k);
   const tom = addDays(today, 1), mt = mealsFor(tom);
-  if (regole()) {
+  if (coppia(tom)) {
+    if (TURNI[turnoOf(tom)].porta.includes('pra')) h += '<div class="card stack" style="border:1.5px dashed #C9D3CD;box-shadow:none;background:transparent"><span class="lab">Stasera prepara il pranzo di domani</span><span style="font-size:14px">' + esc(luiTxt(tom, 'pra')) + '</span></div>';
+  } else if (regole()) {
     if (TURNI[turnoOf(tom)].porta.includes('pra') && !['lpz', 'fle'].includes(mt.pra)) h += '<div class="card stack" style="border:1.5px dashed #C9D3CD;box-shadow:none;background:transparent"><span class="lab">Stasera prepara il pranzo di domani</span><span style="font-size:14px">' + esc(corto(tom, 'pra')) + ': cucina un po\' di carboidrati in più a cena e mettili da parte, aggiungi la proteina e le verdure.</span></div>';
   } else
   h += '<div class="card stack" style="border:1.5px dashed #C9D3CD;box-shadow:none;background:transparent"><span class="lab">Stasera prepara</span><button class="meal" style="background:none;padding:0" data-recipe="' + mt.pra + '" data-date="' + keyOf(tom) + '" data-slot="pra"><span class="dish">' + esc(R[mt.pra].n) + '</span><span class="small mut">Pranzo di ' + GIORNI[dow(tom)].toLowerCase() + (R[mt.pra].min ? ' · ' + R[mt.pra].min + ' minuti' : '') + '</span>' + (availChip(mt.pra) ? '<span class="chips">' + availChip(mt.pra) + '</span>' : '') + '</button><button class="btn sec2 sm" data-noingr="' + keyOf(tom) + '">Non ho gli ingredienti</button></div>';
@@ -1008,6 +1014,7 @@ function closeSheet(){ $('#layer').innerHTML = ''; }
 
 /* ---------------- SETTIMANA ---------------- */
 function viewSettimana(){
+  if (coppia(addDays(addDays(mondayOf(new Date()), selWeekOffset * 7), 6))) return viewSettimanaCoppia();
   const monday = addDays(mondayOf(new Date()), selWeekOffset * 7);
   const pz = pizzaDayFor(monday);
   if (selDay == null) selDay = selWeekOffset === 0 ? dow(new Date()) : 0;
@@ -1381,7 +1388,7 @@ const scoreCache = {};
 function dayScore(k){
   const d = parseKey(k), m = mealsFor(d), b = S.bevande[k] || {}, pool = S.profilo.piscina.includes(dow(d));
   let got = 0, max = 0; const manca = [];
-  activeSlots().forEach(sl => {
+  activeSlots(d).forEach(sl => {
     const w = PESO_SLOT[sl] || 5; max += w;
     const me = S.mangiato[k + ':' + sl];
     if (me) got += me.voto === 'bene' ? w : me.voto === 'cosi' ? w / 2 : 0;
@@ -1635,6 +1642,176 @@ function spesaRegole(mk){
   return { monday, items, due };
 }
 
+/* ---------------- Dieta di coppia: il piano della nutrizionista di lei, con le dosi di lui ---------------- */
+let DIETA = null;
+try { const t = localStorage.getItem('meno15-dieta'); if (t) DIETA = JSON.parse(t); } catch (e) {}
+if (!DIETA && typeof DIETA_INCORPORATA !== 'undefined') DIETA = DIETA_INCORPORATA;
+async function caricaDieta(){
+  if (typeof sb === 'undefined' || !sb || !sbUser) return;
+  try {
+    const { data } = await sb.from('meno15_dieta').select('dati').eq('user_id', sbUser.id).maybeSingle();
+    if (data && data.dati && data.dati.settimane && data.dati.settimane.length) {
+      const nuovo = JSON.stringify(data.dati);
+      if (nuovo !== JSON.stringify(DIETA)) { DIETA = data.dati; try { localStorage.setItem('meno15-dieta', nuovo); } catch (e) {} render(); }
+    }
+  } catch (e) {}
+}
+function coppia(d){
+  const m = S.profilo.modo;
+  if (m === 'regole' || m === 'ricette') return false;
+  return !!(DIETA && DIETA.settimane && DIETA.settimane.length && keyOf(d || new Date()) >= DIETA.inizio);
+}
+function settimanaDieta(d){ const n = Math.floor((parseKey(keyOf(d)) - parseKey(DIETA.inizio)) / (7 * 864e5)); return ((n % DIETA.settimane.length) + DIETA.settimane.length) % DIETA.settimane.length; }
+function dietaGiorno(d){ return (DIETA.settimane[settimanaDieta(d)] || [])[dow(d)] || {}; }
+const NOME_LEI = () => (DIETA && DIETA.nome) || 'Lei';
+const FATT_C = { P: 1.35, C: 2.0, G: 1.5, F: 1, X: 1, V: 1 };
+function fattore(cat){ let k = FATT_C[cat] || 1; if (cat === 'C') k += 0.25 * (S.porz || 0); return k; }
+function scalaQ(n, v, u, cat){
+  const k = fattore(cat);
+  if (v == null || k === 1) return v;
+  if (u === 'g') { const x = v * k, st = x < 60 ? 5 : 10; return Math.round(x / st) * st; }
+  if (u === 'n') { if (/^Uovo/.test(n)) return Math.round(v * k + 0.3); if (cat === 'F') return Math.round(v * k * 2) / 2; return Math.max(1, Math.round(v * k)); }
+  return Math.round(v * k * 2) / 2;
+}
+function fmtQ(v, u){
+  if (v == null) return u === 'q' ? 'q.b.' : '—';
+  let s = String(v).replace(/\.5$/, '½').replace(/^0½$/, '½').replace(/\.75$/, '¾').replace(/^0¾$/, '¾');
+  return ({ g: s + ' g', n: s, cucchiai: s + ' cucchiai', cucchiaini: s + ' cucchiaini', tazzina: s + ' tazzina', bicchiere: s + ' bicchiere' })[u] || s;
+}
+function nomeCibo(n){ return n.replace(/bevanda a base di mandorla/g, 'latte di mandorla').replace(/ aglutinat[oaie]/, ' senza glutine').replace(' da latte scremato delattosato', ' delattosato').replace(' da latte scremato', '').replace(' con calcio e vitamine aggiunte', '').replace('Bevanda a base di mandorla', 'Latte di mandorla').replace('Olio extra vergine di oliva', 'Olio extravergine'); }
+// il pane per lui è quello normale integrale; tutto il resto è lo stesso prodotto
+function pianoGiorno(d){
+  const g = dietaGiorno(d), sab = dow(d) === 5, pool = S.profilo.piscina.includes(dow(d)), out = {};
+  Object.keys(g).forEach(sl => {
+    let kl = 0, ka = 0;
+    const righe = g[sl].map(([t, n, v, u, cat, k]) => {
+      const lui = (sab && sl === 'cen') ? undefined : scalaQ(n, v, u, cat);
+      kl += (v == null ? k : k * v); if (lui !== undefined) ka += (lui == null ? k : k * lui);
+      const pane = /^Pane aglutinato/.test(n);
+      return { t, n, nome: pane ? 'Pane' : nomeCibo(n), lei: fmtQ(v, u) + (pane ? ' s.g.' : ''), lui: lui === undefined ? '—' : fmtQ(lui, u) + (pane ? ' integrale' : ''), cat, v, u, vl: lui, pane };
+    });
+    if (sab && sl === 'cen') { righe.push({ t: '', nome: 'Pizza e birra media 🍕', lei: '—', lui: 'sì', cat: 'X', pizza: true }); ka = 1050; }
+    if (pool && sl === 'cen' && !sab) { righe.push({ t: '', nome: 'Pane in più (piscina)', lei: '—', lui: '30 g integrale', cat: 'C', vl: 30, u: 'g', pane: true }); ka += 78; }
+    out[sl] = { righe, kLei: Math.round(kl), kLui: Math.round(ka) };
+  });
+  return out;
+}
+function cortoCoppia(d, sl){
+  const p = pianoGiorno(d)[sl]; if (!p) return '';
+  const tit = [];
+  p.righe.forEach(r => { const x = r.t || r.nome; if (r.cat !== 'V' && r.cat !== 'X' && !tit.includes(x)) tit.push(x); if (r.pizza) tit.unshift('Pizza'); });
+  return tit.slice(0, 3).join(', ');
+}
+function luiTxt(d, sl){ const p = pianoGiorno(d)[sl]; if (!p) return ''; return p.righe.filter(r => r.lui !== '—').map(r => r.nome + (r.lui && r.lui !== 'q.b.' && r.lui !== 'sì' ? ' ' + r.lui : '')).join(', '); }
+function tabellaPasto(p){
+  let h = '<div style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr);gap:2px 8px;font-size:14px;align-items:baseline">';
+  h += '<span class="small mut">Cosa</span><span class="small" style="color:#6B4FA0;font-weight:700">' + esc(NOME_LEI()) + '</span><span class="small" style="color:var(--green-d);font-weight:700">Ale</span>';
+  let ult = null;
+  p.righe.forEach(r => {
+    if (r.t && r.t !== ult) { h += '<span style="grid-column:1/-1;font-weight:700;margin-top:6px">' + esc(nomeCibo(r.t)) + '</span>'; }
+    ult = r.t || null;
+    h += '<span style="' + (r.t ? 'padding-left:10px;' : '') + 'border-top:1px solid var(--line);padding-top:5px">' + esc(r.nome) + '</span><span style="border-top:1px solid var(--line);padding-top:5px;color:#6B4FA0">' + esc(r.lei) + '</span><span style="border-top:1px solid var(--line);padding-top:5px;color:var(--green-d);font-weight:700">' + esc(r.lui) + '</span>';
+  });
+  return h + '</div>';
+}
+function coppiaCards(date, tutto){
+  const k = keyOf(date), P = pianoGiorno(date), slots = activeSlots(date);
+  const nextS = !tutto && k === keyOf(new Date()) ? slots.find(x => !S.fatti[k + ':' + x] && x !== 'ser') : null;
+  let h = '<div class="stack" style="gap:10px">';
+  slots.forEach(s => {
+    const info = slotInfo(date, s), done = S.fatti[k + ':' + s], ic = SLOTICO[s], me = S.mangiato[k + ':' + s];
+    if (!tutto && (done || (nextS && s !== nextS)) && !aperti.has(k + ':' + s)) {
+      h += '<div class="card" style="padding:8px 12px;' + (done ? 'opacity:.8' : '') + '"><div class="mc-head" style="gap:10px"><span class="slotico" style="width:30px;height:30px;background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><button data-apri="' + s + '" data-date="' + k + '" style="all:unset;flex:1;cursor:pointer;min-height:40px;display:flex;align-items:center;gap:6px;overflow:hidden"><b style="font-size:14px;white-space:nowrap">' + SLOTNAME[s] + (done ? '' : ' <span class="small mut" style="font-weight:400">' + info.time + '</span>') + '</b><span class="small mut" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(me ? (me.piatto || me.testo) + (me.pending ? ' · da valutare' : '') : cortoCoppia(date, s)) + '</span></button><button class="checkbtn' + (done ? ' on' : '') + '" data-done="' + s + '" data-date="' + k + '" aria-label="' + (done ? 'Mangiato, tocca per annullare' : 'Segna come mangiato') + '" aria-pressed="' + (done ? 'true' : 'false') + '">' + ICON.check + '</button></div></div>';
+      return;
+    }
+    h += '<div class="card mc"' + (s === nextS ? ' style="border:2px solid var(--green)"' : '') + '>';
+    if (s === nextS) h += '<span class="pill" style="align-self:flex-start;margin-bottom:-4px">Il prossimo</span>';
+    if (!tutto && aperti.has(k + ':' + s)) h += '<button class="linkbtn" data-apri="' + s + '" data-date="' + k + '" style="align-self:flex-end;margin-bottom:-6px">Chiudi</button>';
+    h += '<div class="mc-head"><span class="slotico" style="background:' + ic[0] + ';color:' + ic[1] + '">' + ic[2] + '</span><div class="mc-when"><b>' + SLOTNAME[s] + ' · ' + info.time + '</b><span class="small mut">' + esc(info.note || '') + '</span></div>';
+    if (!tutto) h += '<button class="checkbtn' + (done ? ' on' : '') + '" data-done="' + s + '" data-date="' + k + '" aria-label="' + (done ? 'Mangiato, tocca per annullare' : 'Segna come mangiato') + '" aria-pressed="' + (done ? 'true' : 'false') + '">' + ICON.check + '</button>';
+    h += '</div>';
+    if (me) {
+      const vc = me.pending ? ['Da valutare', '#EEF0EF', '#555'] : (VOTO[me.voto] || VOTO.cosi);
+      h += '<button class="meal" style="background:none;padding:0" data-altro="' + s + '" data-date="' + k + '"><span class="dish">' + esc(me.piatto || me.testo) + '</span><span class="chips"><span class="chip" style="background:' + vc[1] + ';color:' + vc[2] + '">' + vc[0] + '</span></span></button>';
+      if (me.fb) h += '<span class="small" style="line-height:1.45">' + esc(me.fb) + '</span>';
+    } else h += tabellaPasto(P[s]);
+    extraLines(date, s).filter(l => /^Compensa/.test(l)).forEach(l => { h += '<span class="small" style="color:#8A3A0E;font-weight:600">' + esc(l) + '</span>'; });
+    if (!tutto) {
+      if (me) h += '<div class="mc-foot"><button class="linkbtn" data-altro="' + s + '" data-date="' + k + '">Vedi o modifica</button><button class="linkbtn" data-altrodel="' + s + '" data-date="' + k + '" style="color:#8A3A0E">Torna al piano</button></div>';
+      else h += '<div class="mc-foot"><span class="small mut">Pesa prima la sua parte, poi la tua</span><button class="linkbtn" data-altro="' + s + '" data-date="' + k + '" style="color:#0B5F55">Ho mangiato altro</button></div>';
+    }
+    h += '</div>';
+  });
+  if (P.gio) h += '<div class="card stack" style="padding:10px 14px"><span class="lab">Durante la giornata</span>' + tabellaPasto(P.gio) + '<span class="small mut">Da usare quando vuoi nei pasti di oggi (l\'olio per condire, il pane in più).</span></div>';
+  return h + '</div>';
+}
+function viewSettimanaCoppia(){
+  const monday = addDays(mondayOf(new Date()), selWeekOffset * 7);
+  if (selDay == null) selDay = selWeekOffset === 0 ? dow(new Date()) : 0;
+  const date = addDays(monday, selDay), attivo = coppia(date);
+  let h = '<div class="top"><div><small>Settimana dal ' + fmtDate(monday) + '</small><h1>' + (attivo ? 'Settimana ' + (settimanaDieta(date) + 1) + ' del piano' : 'Il menu') + '</h1></div><div class="row">';
+  h += '<button class="btn sec2 sm" data-week="-1" aria-label="Settimana precedente">‹</button><button class="btn sec2 sm" data-week="1" aria-label="Settimana successiva">›</button></div></div>';
+  h += '<div class="daystrip">';
+  for (let i = 0; i < 7; i++) { const cls = (i === 5 ? ' pz' : S.profilo.piscina.includes(i) ? ' pool' : '') + (i === selDay ? ' on' : ''); h += '<button class="day' + cls + '" data-sel="' + i + '"><b>' + GG[i] + '</b><small>' + (i === 5 ? 'Pizza' : S.profilo.piscina.includes(i) ? 'Piscina' : addDays(monday, i).getDate()) + '</small></button>'; }
+  h += '</div>';
+  h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt on" data-spesa="' + keyOf(monday) + '">🛒 Lista della spesa</button><button class="opt" data-turni="' + keyOf(monday) + '">Turni</button></div>';
+  if (typeof sb !== 'undefined' && sb && sbUser) h += '<button class="btn sec2" data-sharelista="' + keyOf(monday) + '">🔗 Link per ' + esc(NOME_LEI()) + ' (lista e menu)</button>';
+  h += altroWeekCard(monday);
+  h += '<div class="sec"><h2>' + GIORNI[selDay] + ' ' + fmtDate(date) + '</h2><span class="small mut">' + TURNI[turnoOf(date)].l + '</span></div>';
+  if (attivo) h += coppiaCards(date, true);
+  else h += '<div class="card"><span style="font-size:14px">Il piano parte da ' + GIORNI[dow(parseKey(DIETA.inizio))].toLowerCase() + ' ' + fmtDate(parseKey(DIETA.inizio)) + '.</span></div>';
+  return h;
+}
+const REP_COPPIA = { P: 'cp', C: 'di', G: 'di', F: 'fv', V: 'fv', X: 'di' };
+function repCoppia(n, cat){
+  if (/aglutinat/.test(n)) return 'sg';
+  if (/^Pane/.test(n)) return 'pa';
+  if (/Uovo|Yogurt|Kefir|Parmigiano|Bevanda/.test(n)) return 'lu';
+  if (/Tonno|Salmone al naturale|Sgombro|Salsa di pomodoro|Brodo/.test(n)) return 'di';
+  if (/surgel/i.test(n)) return 'su';
+  return REP_COPPIA[cat] || 'di';
+}
+function spesaCoppia(mk){
+  const monday = parseKey(mk), tot = {};
+  const add = (key, rep, u, v, qb) => { const t = tot[key] || (tot[key] = { rep, u: {}, qb: 0 }); if (qb) t.qb++; else t.u[u] = (t.u[u] || 0) + v; };
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(monday, i); if (!coppia(d)) continue;
+    const P = pianoGiorno(d);
+    Object.keys(P).forEach(sl => P[sl].righe.forEach(r => {
+      if (r.pizza || !r.n && !r.pane) return;
+      if (r.pane) {
+        if (r.n) add('Pane senza glutine (per ' + NOME_LEI().toLowerCase() + ')', 'sg', r.u, r.v || 0);
+        if (r.vl) add('Pane integrale (per te)', 'pa', 'g', r.vl);
+        return;
+      }
+      const nome = nomeCibo(r.n), rep = repCoppia(r.n, r.cat);
+      if (r.v == null) { add(nome, rep, null, 0, true); return; }
+      add(nome, rep, r.u, r.v + (typeof r.vl === 'number' ? r.vl : 0));
+    }));
+  }
+  const items = {};
+  Object.keys(tot).forEach(n => {
+    const t = tot[n], parti = Object.keys(t.u).map(u => fmtQ(Math.round(t.u[u] * 2) / 2, u === 'n' ? 'n' : u)).map(x => /^\d/.test(x) && !/[a-z]/.test(x) ? 'n° ' + x : x);
+    items[n] = { rep: t.rep, count: 1, q: parti.length ? parti.join(' + ') : 'per ' + t.qb + (t.qb === 1 ? ' pasto' : ' pasti') };
+  });
+  return { monday, items, due: false, coppia: true };
+}
+function menuPerLei(){
+  const out = [];
+  for (let i = 0; i < 8; i++) {
+    const d = addDays(new Date(), i); if (!coppia(d)) continue;
+    const g = dietaGiorno(d), pasti = [];
+    SLOTS.concat(['gio']).forEach(sl => {
+      if (!g[sl]) return;
+      const r = [];
+      g[sl].forEach(([t, n, v, u]) => { const x = nomeCibo(n) + (v == null ? '' : ' ' + fmtQ(v, u)); const last = r[r.length - 1]; if (t && last && last.t === t) last.x.push(x); else r.push({ t, x: [x] }); });
+      pasti.push({ s: sl === 'gio' ? 'Durante la giornata' : SLOTNAME[sl], r: r.map(o => o.t ? nomeCibo(o.t) + ': ' + o.x.join(', ').toLowerCase() : o.x[0]) });
+    });
+    out.push({ d: keyOf(d), g: GIORNI[dow(d)] + ' ' + fmtDate(d), sett: settimanaDieta(d) + 1, pasti });
+  }
+  return out;
+}
+
 /* ---------------- Home semplice: sfida in una riga, acqua, serata libera, check del lunedì ---------------- */
 function trainingMini(date){
   const A = allenamento(), k = keyOf(date), fatto = !!S.fatti[k + ':all'];
@@ -1665,7 +1842,7 @@ function openChiedi(k){
   h += '<button class="btn sec2" data-dimmi style="min-height:58px">✗ No: ti dico cosa ho mangiato</button>';
   sheet(h);
 }
-function giornoJolly(date){ return pizzaDayFor(mondayOf(date)); }
+function giornoJolly(date){ return coppia(date) ? 5 : pizzaDayFor(mondayOf(date)); }
 function jollyLine(){
   const today = new Date(), mon = mondayOf(today), jd = giornoJolly(today), jDate = addDays(mon, jd);
   let extra = 0;
@@ -1702,7 +1879,7 @@ function checkLunedi(){
   h += '</ul>';
   if (!pOggi) h += '<span style="font-size:14px"><b>Pesati</b>: appena sveglio, prima di colazione.</span><div class="row" style="gap:8px"><input id="kg" type="text" inputmode="decimal" placeholder="es. 101,4" style="flex:1"><button class="btn pri sm" id="addkg">Salva</button></div>';
   else if (pw.length && pOggi.kg > pw[pw.length - 1].kg) h += '<span class="small mut">Peso in su dopo un weekend pieno? È soprattutto acqua e sale: con 3-4 giorni di piano torna giù.</span>';
-  h += '<span style="font-size:14px">🃏 La serata libera di questa settimana: <b>' + GIORNI[giornoJolly(today)].toLowerCase() + '</b> <button class="linkbtn" data-jollysel style="display:inline">cambia</button></span>';
+  h += coppia(today) ? '<span style="font-size:14px">🍕 Sabato sera: la tua pizza. Gli altri giorni: il piano.</span>' : '<span style="font-size:14px">🃏 La serata libera di questa settimana: <b>' + GIORNI[giornoJolly(today)].toLowerCase() + '</b> <button class="linkbtn" data-jollysel style="display:inline">cambia</button></span>';
   h += '<button class="btn sec2" data-checkok="' + mk + '">Fatto, si parte</button></div>';
   return h;
 }
@@ -1804,13 +1981,18 @@ function openTurni(mk){
 function listaPayload(mk){
   const { monday, items } = buildSpesa(mk), gruppi = [];
   Object.keys(REP2).forEach(rk => { if (rk === 'casa') return; const voci = Object.keys(items).filter(n => items[n].rep === rk).sort().map(n => ({ n, c: items[n].count })); if (voci.length) gruppi.push({ nome: REP2[rk], sg: rk === 'sg', voci }); });
-  return { mk, titolo: 'Spesa della settimana dal ' + fmtDate(monday), gruppi, nome: S.profilo.nome || '' };
+  const out = { mk, titolo: 'Spesa della settimana dal ' + fmtDate(monday), gruppi, nome: S.profilo.nome || '' };
+  if (DIETA) { out.menu = menuPerLei(); out.lei = NOME_LEI(); }
+  gruppi.forEach(g => g.voci.forEach(v => { const it = items[v.n]; if (it && it.q) v.q = it.q; }));
+  return out;
 }
+let LISTA_EXTRA = [];
 function listaUrl(){ return typeof SB_URL !== 'undefined' ? SB_URL + '/functions/v1/meno15-lista' : ''; }
 async function listaCarica(mk, forza){
   if (!S.listaTok || typeof sb === 'undefined' || !sb || !sbUser) return false;
   try {
-    const { data } = await sb.from('meno15_liste').select('dati,spuntati').eq('token', S.listaTok).maybeSingle();
+    const { data } = await sb.from('meno15_liste').select('dati,spuntati,extra').eq('token', S.listaTok).maybeSingle();
+    if (data && Array.isArray(data.extra)) LISTA_EXTRA = data.extra.filter(x => x && x.t);
     const stessa = !!(data && data.dati && data.dati.mk === mk);
     if (data && data.dati && !stessa && !forza && mk < data.dati.mk) return false;
     const row = { token: S.listaTok, user_id: sbUser.id, dati: listaPayload(mk), aggiornato: new Date().toISOString() };
@@ -1826,7 +2008,7 @@ async function listaCondividi(mk){
   const ok = await listaCarica(mk, true);
   if (ok === false) { toast('Non riesco a condividerla adesso: serve internet e il salvataggio online.'); return; }
   const url = location.origin + location.pathname + '?lista=' + S.listaTok;
-  const txt = 'La nostra lista della spesa, sempre aggiornata: spunta quello che prendi. ' + url;
+  const txt = 'Il tuo menu di ogni giorno e la nostra lista della spesa, sempre aggiornati: spunta quello che prendi e scrivi cosa hai comprato. Salvalo sulla schermata Home. ' + url;
   try { if (navigator.share) { await navigator.share({ title: 'Lista della spesa', text: txt }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(txt); toast('Link copiato: incollalo su WhatsApp'); } catch (e) { toast(url); }
 }
@@ -1842,10 +2024,21 @@ async function vistaLista(tok){
     const d = LV.dati || {}, sp = LV.spuntati || {};
     let tot = 0, fatti = 0;
     (d.gruppi || []).forEach(g => g.voci.forEach(v => { tot++; if (sp[v.n]) fatti++; }));
-    let h = '<div class="hero"><small>Lista condivisa' + (d.nome ? ' da ' + esc(d.nome) : '') + '</small><h1 style="font-size:24px">' + esc(d.titolo || 'Lista della spesa') + '</h1><span class="small" style="color:#BFD8CB">' + fatti + ' su ' + tot + ' presi · si aggiorna da sola</span></div>';
+    let h = '<div class="hero"><small>' + (d.lei ? 'Ciao ' + esc(d.lei) : 'Lista condivisa' + (d.nome ? ' da ' + esc(d.nome) : '')) + '</small><h1 style="font-size:24px">' + (d.menu && d.menu.length ? 'Menu e spesa' : esc(d.titolo || 'Lista della spesa')) + '</h1><span class="small" style="color:#BFD8CB">' + fatti + ' su ' + tot + ' presi · si aggiorna da sola</span></div>';
+    if (d.menu && d.menu.length) {
+      const oggi = keyOf(new Date()), giorni = d.menu.filter(x => x.d >= oggi).slice(0, 2);
+      giorni.forEach((g, gi) => {
+        h += '<details class="nu"' + (gi === 0 ? ' open' : '') + '><summary>' + (gi === 0 ? 'Oggi · ' : 'Domani · ') + esc(g.g) + ' <span class="small mut" style="font-weight:400">settimana ' + g.sett + '</span></summary><div>';
+        g.pasti.forEach(p => { h += '<div><b style="font-size:14px">' + esc(p.s) + '</b>' + p.r.map(x => '<div class="small" style="padding:2px 0">' + esc(x) + '</div>').join('') + '</div>'; });
+        h += '</div></details>';
+      });
+    }
+    h += '<div class="card stack" style="border-color:#6B4FA0"><span class="lab">Ho comprato…</span><div class="row" style="gap:8px"><input id="lt-add" type="text" placeholder="Es. 2 confezioni di yogurt" style="flex:1"><button class="btn pri sm" data-ltadd>Aggiungi</button></div>';
+    (LV.extra || []).forEach((x, i) => { h += '<div class="between small" style="border-top:1px solid var(--line);padding-top:6px"><span>' + esc(x.t) + '</span><button class="linkbtn" data-ltdel="' + i + '" aria-label="Togli">✕</button></div>'; });
+    h += '</div><div class="sec" style="margin-top:4px"><h2>Lista della spesa</h2><span class="small mut">' + esc(d.titolo || '') + '</span></div>';
     (d.gruppi || []).forEach(g => {
       h += '<div class="card"' + (g.sg ? ' style="border-color:#E0A43A"' : '') + '><div class="lab" style="margin-bottom:4px">' + esc(g.sg ? 'Senza glutine (per te)' : g.nome) + '</div>';
-      g.voci.forEach(v => { const on = !!sp[v.n]; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="padding:8px 0"><input type="checkbox" data-lt="' + esc(v.n) + '"' + (on ? ' checked' : '') + '><span style="flex:1">' + esc(v.n) + '</span>' + (v.c > 1 ? '<span class="small mut">×' + v.c + '</span>' : '') + '</label>'; });
+      g.voci.forEach(v => { const on = !!sp[v.n]; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="padding:8px 0"><input type="checkbox" data-lt="' + esc(v.n) + '"' + (on ? ' checked' : '') + '><span style="flex:1">' + esc(v.n) + '</span>' + (v.q ? '<span class="small mut">' + esc(v.q) + '</span>' : v.c > 1 ? '<span class="small mut">×' + v.c + '</span>' : '') + '</label>'; });
       h += '</div>';
     });
     app.innerHTML = h;
@@ -1854,6 +2047,7 @@ async function vistaLista(tok){
   disegna(); await carica();
   setInterval(() => { if (document.visibilityState === 'visible') carica(); }, 20000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') carica(); });
+  window.__listaDisegna = disegna;
   window.__listaTok = tok; window.__listaSet = (v, on) => { if (LV && LV.spuntati) { if (on) LV.spuntati[v] = true; else delete LV.spuntati[v]; } };
 }
 
@@ -1932,13 +2126,13 @@ function buildPushPlan(){
     const d = addDays(new Date(), i), k = keyOf(d), T = TURNI[turnoOf(d)], m = mealsFor(d), pool = S.profilo.piscina.includes(dow(d)), sf = sfidaDi(mondayOf(d));
     const add = (cat, min, t, b, c, n) => { const a = at(k, min); if (a) out.push(Object.assign({ k: k + ':' + cat, at: a, cat, t, b, d: k }, c ? { c, n } : {})); };
     const col = toMin(T.col);
-    add('mattina', col, 'Buongiorno' + nome + ' ☀️', 'Colazione: ' + (regole() ? 'yogurt greco o uova, avena o pane, un frutto' : (R[m.col] ? R[m.col].n : '')) + '. Sfida della settimana: «' + sf.t + '», ' + sf.d + '.');
+    add('mattina', col, 'Buongiorno' + nome + ' ☀️', 'Colazione: ' + (coppia(d) ? luiTxt(d, 'col') : regole() ? 'yogurt greco o uova, avena o pane, un frutto' : (R[m.col] ? R[m.col].n : '')) + '. Sfida della settimana: «' + sf.t + '», ' + sf.d + '.');
     if (dow(d) === 0) add('peso', col - 10, 'Giorno della bilancia ⚖️', 'Appena sveglio, prima di colazione: pesati e segnalo nell\'app. È il tuo punto della settimana.', 'peso');
     add('acqua', 15 * 60, 'Acqua 💧', 'Sei indietro con l\'acqua: bevi due bicchieri adesso e segnali. Tiene buona anche la fame.', 'acqua', 4);
     if (pool) add('piscina', A.pre - 10, 'Stasera piscina 🏊', 'Ora lo spuntino pre-allenamento: ' + (R[m.mer] ? R[m.mer].n : '') + '. Porta la bottiglietta d\'acqua.');
-    else if (R[m.mer]) add('raptus', toMin(T.mer) - 20, 'Ora dei raptus 🍪', 'Tra poco la merenda: ' + (regole() ? 'yogurt greco, o frutto e 10 mandorle' : R[m.mer].n) + '. Se la fame arriva prima, apri «Ho fame» invece della credenza: vale 5 punti.');
+    else if (R[m.mer]) add('raptus', toMin(T.mer) - 20, 'Ora dei raptus 🍪', 'Tra poco la merenda: ' + (coppia(d) ? luiTxt(d, 'mer') : regole() ? 'yogurt greco, o frutto e 10 mandorle' : R[m.mer].n) + '. Se la fame arriva prima, apri «Ho fame» invece della credenza: vale 5 punti.');
     const dm = addDays(d, 1), Tm = TURNI[turnoOf(dm)], mm = mealsFor(dm);
-    if (Tm.porta.includes('pra') && R[mm.pra] && !['lpz','fle'].includes(mm.pra) && !S.fatti[keyOf(dm) + ':pra']) add('prepara', 21 * 60 + 15, 'Pranzo di domani 🍱', 'Preparalo stasera: ' + (regole() ? corto(dm, 'pra').toLowerCase() : R[mm.pra].n) + '. Domani niente improvvisazioni.');
+    if (Tm.porta.includes('pra') && R[mm.pra] && !['lpz','fle'].includes(mm.pra) && !S.fatti[keyOf(dm) + ':pra']) add('prepara', 21 * 60 + 15, 'Pranzo di domani 🍱', 'Preparalo stasera: ' + (coppia(dm) ? luiTxt(dm, 'pra') : regole() ? corto(dm, 'pra').toLowerCase() : R[mm.pra].n) + '. Domani niente improvvisazioni.');
     const ser = toMin(T.ser);
     add('giornata', ser != null && ser > 19 * 60 ? ser - 30 : 21 * 60 + 30, 'Hai seguito il piano oggi? 🔥', 'Rispondi con un tocco' + (i === 0 && sr ? ' e tieni la serie di ' + sr + (sr === 1 ? ' giorno.' : ' giorni.') : '.'), 'giornata', 3);
     if (out.length && out[out.length - 1].cat === 'giornata') out[out.length - 1].u = '?chiedi=' + k;
@@ -1963,6 +2157,7 @@ const COMP_KCAL = { carbo:150, merleggera:80, noser:80, noolio:80 };
 const CAT_LBL = { carne:'Carne', pesce:'Pesce', legumi:'Legumi', uova:'Uova', formaggio:'Formaggio', veg:'Solo verdure / niente', fuori:'Pizza o pasto libero' };
 let alRes = null, alPhoto = null, alPhotoUrl = '';
 function plannedKcal(date, slot){
+  if (coppia(date)) { const p = pianoGiorno(date)[slot]; if (p) return p.kLui || 1; }
   let v = SLOT_KCAL[slot] || 300;
   const m = mealsFor(date);
   if (slot === 'cen' && S.profilo.piscina.includes(dow(date)) && !['dpz','ffe','fle'].includes(m.cen)) v += 100;
@@ -2011,6 +2206,7 @@ function quando(k, sl){
 }
 // riequilibra le proteine sui pasti che mancano in settimana
 function riequilibra(dateKey, slot, apply){
+  if (coppia(parseKey(dateKey))) return [];
   const d0 = parseKey(dateKey), mon = mondayOf(d0), cambi = [];
   const futuri = [];
   for (let i = 0; i < 7; i++) {
@@ -2092,6 +2288,7 @@ function localValuta(slot, q, cat, testo){
 }
 function previstoTxt(dateKey, slot){
   const d = parseKey(dateKey), r = R[mealsFor(d)[slot]];
+  if (coppia(d)) return luiTxt(d, slot) || 'niente';
   if (typeof regole === 'function' && regole()) { const f = formula(d, slot); return f.prot ? corto(d, slot) : f.righe.map(x => x[1]).join(' '); }
   return r ? r.n : '';
 }
@@ -2140,7 +2337,7 @@ function openAltro(slot, dateKey, keep){
     if (main && x.voto === 'fuori') {
       const dd = parseKey(dateKey), jd = giornoJolly(dd), jk = keyOf(addDays(mondayOf(dd), jd));
       if (dow(dd) === jd) h += '<span class="small" style="color:var(--green-d);font-weight:600">🃏 È la tua serata libera: va bene così.</span>';
-      else if (jk > dateKey && !alRes.salvato) h += '<button class="btn sec2" data-usajolly="' + slot + '" data-date="' + dateKey + '">🃏 Usa adesso la serata libera (' + GIORNI[jd].toLowerCase() + ' diventa una sera normale)</button>';
+      else if (jk > dateKey && !alRes.salvato && !coppia(dd)) h += '<button class="btn sec2" data-usajolly="' + slot + '" data-date="' + dateKey + '">🃏 Usa adesso la serata libera (' + GIORNI[jd].toLowerCase() + ' diventa una sera normale)</button>';
       else h += '<span class="small" style="color:#8A3A0E;font-weight:600">Hai già usato la serata libera di questa settimana: questo è un secondo sgarro. Lo compensiamo nei prossimi pasti.</span>';
     }
     h += '</div>';
@@ -2422,6 +2619,7 @@ function openCasa(keepScroll){
 }
 
 function buildSpesa(mk){
+  if (coppia(addDays(parseKey(mk), 6))) return spesaCoppia(mk);
   if (regole()) return spesaRegole(mk);
   const monday = parseKey(mk), items = {}, due = S.profilo.cenePerDue !== false, gf = S.profilo.compagnaCeliaca;
   const add = (name, rep, n) => { if (!items[name]) items[name] = { rep, count:0 }; items[name].count += n; };
@@ -2444,12 +2642,13 @@ const REP2 = Object.assign({}, REP, { sg:'Senza glutine (per lei)', casa:'Già i
 function openSpesa(mk){
   const { monday, items, due } = buildSpesa(mk);
   const done = S.spesa[mk] || {};
-  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Lista della spesa</h2><button class="btn sec2 sm" data-close>Chiudi</button></div><span class="small mut">Settimana dal ' + fmtDate(monday) + '. Il numero indica le porzioni' + (due ? ' (le cene sono contate per due)' : '') + '.</span>';
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Lista della spesa</h2><button class="btn sec2 sm" data-close>Chiudi</button></div><span class="small mut">Settimana dal ' + fmtDate(monday) + (buildSpesa(mk).coppia ? '. Quantità già sommate per te e ' + esc(NOME_LEI()) + ', dal suo piano.' : '. Il numero indica le porzioni' + (due ? ' (le cene sono contate per due)' : '') + '.') + '</span>';
+  if (typeof LISTA_EXTRA !== 'undefined' && LISTA_EXTRA.length) { h += '<div class="card" style="border-color:#6B4FA0"><div class="lab" style="margin-bottom:4px">Comprato in più da ' + esc(NOME_LEI()) + '</div>'; LISTA_EXTRA.forEach(x => { h += '<div class="small" style="padding:4px 0;border-top:1px solid var(--line)">' + esc(x.t) + '</div>'; }); h += '</div>'; }
   Object.keys(REP2).forEach(rk => {
     const names = Object.keys(items).filter(n => items[n].rep === rk).sort();
     if (!names.length) return;
     h += '<div class="card"' + (rk === 'sg' ? ' style="border-color:#E0A43A"' : '') + '><div class="lab" style="margin-bottom:4px">' + REP2[rk] + '</div>';
-    names.forEach(n => { const on = !!done[n], c = items[n].count, g = rk !== 'casa' ? guidaFor(n) : null; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="align-items:flex-start;padding:8px 0"><input type="checkbox" data-shop="' + esc(n) + '" data-mk="' + mk + '"' + (on ? ' checked' : '') + ' style="margin-top:2px"><span style="flex:1;min-width:0">' + esc(n) + (g ? '<span class="small" style="display:block;color:var(--green-d);text-decoration:none">Scegli: ' + esc(g[0]) + '</span>' : '') + '</span><span class="small mut" style="white-space:nowrap">' + (c ? c + (c === 1 ? ' porz.' : ' porz.') : 'controlla') + '</span></label>'; });
+    names.forEach(n => { const on = !!done[n], c = items[n].count, g = rk !== 'casa' ? guidaFor(n) : null; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="align-items:flex-start;padding:8px 0"><input type="checkbox" data-shop="' + esc(n) + '" data-mk="' + mk + '"' + (on ? ' checked' : '') + ' style="margin-top:2px"><span style="flex:1;min-width:0">' + esc(n) + (g ? '<span class="small" style="display:block;color:var(--green-d);text-decoration:none">Scegli: ' + esc(g[0]) + '</span>' : '') + '</span><span class="small mut" style="white-space:nowrap">' + (items[n].q ? esc(items[n].q) : c ? c + ' porz.' : 'controlla') + '</span></label>'; });
     h += '</div>';
   });
   h += '<button class="btn sec2" data-guida>Come scegliere i prodotti (cosa evitare)</button>';
@@ -2887,6 +3086,10 @@ function updatePacePreview(){
   el.innerHTML = ICON.info + '<span>' + esc(pm.txt) + '</span>';
 }
 function modoCard(){
+  if (DIETA) {
+    const m = S.profilo.modo, c = m !== 'regole' && m !== 'ricette';
+    return '<div class="card stack"><span class="lab">Come vuoi il piano</span><div class="seg" style="grid-template-columns:repeat(3,minmax(0,1fr))"><button class="opt' + (c ? ' on' : '') + '" data-modo="coppia">Dieta di coppia</button><button class="opt' + (m === 'regole' ? ' on' : '') + '" data-modo="regole">Regole</button><button class="opt' + (m === 'ricette' ? ' on' : '') + '" data-modo="ricette">Ricette</button></div><span class="small mut">' + (c ? 'Gli stessi pasti del piano di ' + esc(NOME_LEI()) + ' (' + esc(DIETA.fonte || '') + ', ' + DIETA.settimane.length + ' settimane, dal ' + fmtDate(parseKey(DIETA.inizio)) + '), con le tue quantità. Sabato sera: pizza.' : 'Il piano di ' + esc(NOME_LEI()) + ' resta salvato: lo riattivi quando vuoi.') + '</span></div>';
+  }
   const r = regole();
   return '<div class="card stack"><span class="lab">Come vuoi il piano</span><div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt' + (r ? ' on' : '') + '" data-modo="regole">Regole semplici</button><button class="opt' + (!r ? ' on' : '') + '" data-modo="ricette">Ricette</button></div><span class="small mut">' + (r ? 'Per ogni pasto ti dice solo cosa e quanto (proteine, carboidrati, verdure), con la proteina del giorno. Le ricette restano come idee.' : 'Ogni pasto ha la sua ricetta, con ingredienti e passaggi.') + '</span></div>';
 }
@@ -2976,6 +3179,8 @@ document.addEventListener('click', async (e) => {
   }
   if (d.spesa) { openSpesa(d.spesa); return; }
   if (d.shop) { const mk = d.mk; S.spesa[mk] = S.spesa[mk] || {}; if (t.checked) S.spesa[mk][d.shop] = true; else delete S.spesa[mk][d.shop]; t.closest('.shop-item').classList.toggle('done', t.checked); save(); listaSpunta(d.shop, t.checked); return; }
+  if (d.ltadd !== undefined) { const inp = $('#lt-add'), tx = (inp && inp.value || '').trim().slice(0, 100); if (!tx) return; fetch(listaUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: window.__listaTok, aggiungi: tx }) }).then(r => r.json()).then(j => { if (j && j.extra) { LV.extra = j.extra; if (window.__listaDisegna) window.__listaDisegna(); } }).catch(() => toast('Sei offline: riprova')); inp.value = ''; return; }
+  if (d.ltdel !== undefined) { fetch(listaUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: window.__listaTok, togli: Number(d.ltdel) }) }).then(r => r.json()).then(j => { if (j && j.extra) { LV.extra = j.extra; if (window.__listaDisegna) window.__listaDisegna(); } }).catch(() => {}); return; }
   if (d.lt !== undefined) { const on = t.checked; t.closest('.shop-item').classList.toggle('done', on); if (window.__listaSet) window.__listaSet(d.lt, on); fetch(listaUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: window.__listaTok, voce: d.lt, on }) }).catch(() => toast('Sei offline: la spunta non è stata salvata')); return; }
   if (d.copyspesa) {
     const { monday, items } = buildSpesa(d.copyspesa), done = S.spesa[d.copyspesa] || {};
@@ -3048,7 +3253,7 @@ document.addEventListener('click', async (e) => {
   if (d.usajolly) { spostaJolly(dow(parseKey(d.date))); render(); openAltro(d.usajolly, d.date, true); toast('Serata libera usata oggi'); return; }
   if (d.checkok) { S.cele['check:' + d.checkok] = 1; save(); render(); toast('Buona settimana!'); return; }
   if (d.bevextra !== undefined) { S.profilo.bevExtra = !S.profilo.bevExtra; save(); render(); return; }
-  if (d.modo) { S.profilo.modo = d.modo; save(); render(); const c = document.getElementById('modo-card'); if (c) c.outerHTML = '<div id="modo-card">' + modoCard() + '</div>'; toast(d.modo === 'regole' ? 'Piano a regole semplici' : 'Piano con le ricette'); return; }
+  if (d.modo) { S.profilo.modo = d.modo; save(); render(); const c = document.getElementById('modo-card'); if (c) c.outerHTML = '<div id="modo-card">' + modoCard() + '</div>'; toast(d.modo === 'coppia' ? 'Dieta di coppia' : d.modo === 'regole' ? 'Piano a regole semplici' : 'Piano con le ricette'); return; }
   if (d.prot) { const kk = d.date + ':' + d.slot; if (protDi(parseKey(d.date), d.slot) === d.prot && !S.protScelta[kk]) return; S.protScelta[kk] = d.prot; save(); render(); return; }
   if (d.idee) { openIdee(d.idee, d.date); return; }
   if (d.apri) { const kk = d.date + ':' + d.apri; if (aperti.has(kk)) aperti.delete(kk); else aperti.add(kk); render(); return; }
