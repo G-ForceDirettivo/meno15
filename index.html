@@ -1755,7 +1755,7 @@ function viewSettimanaCoppia(){
   for (let i = 0; i < 7; i++) { const cls = (i === 5 ? ' pz' : S.profilo.piscina.includes(i) ? ' pool' : '') + (i === selDay ? ' on' : ''); h += '<button class="day' + cls + '" data-sel="' + i + '"><b>' + GG[i] + '</b><small>' + (i === 5 ? 'Pizza' : S.profilo.piscina.includes(i) ? 'Piscina' : addDays(monday, i).getDate()) + '</small></button>'; }
   h += '</div>';
   h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt on" data-spesa="' + keyOf(monday) + '">🛒 Lista della spesa</button><button class="opt" data-turni="' + keyOf(monday) + '">Turni</button></div>';
-  if (typeof sb !== 'undefined' && sb && sbUser) h += '<button class="btn sec2" data-sharelista="' + keyOf(monday) + '">🔗 Link per ' + esc(NOME_LEI()) + ' (lista e menu)</button>';
+  if (typeof sb !== 'undefined' && sb && sbUser) h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt" data-sharelista="' + keyOf(monday) + '">🔗 Link per ' + esc(NOME_LEI()) + '</button><button class="opt" data-frase>💌 Frase per lei</button></div>';
   h += altroWeekCard(monday);
   h += '<div class="sec"><h2>' + GIORNI[selDay] + ' ' + fmtDate(date) + '</h2><span class="small mut">' + TURNI[turnoOf(date)].l + '</span></div>';
   if (attivo) h += coppiaCards(date, true);
@@ -1983,10 +1983,28 @@ function listaPayload(mk){
   Object.keys(REP2).forEach(rk => { if (rk === 'casa') return; const voci = Object.keys(items).filter(n => items[n].rep === rk).sort().map(n => ({ n, c: items[n].count })); if (voci.length) gruppi.push({ nome: REP2[rk], sg: rk === 'sg', voci }); });
   const out = { mk, titolo: 'Spesa della settimana dal ' + fmtDate(monday), gruppi, nome: S.profilo.nome || '' };
   if (DIETA) { out.menu = menuPerLei(); out.lei = NOME_LEI(); }
+  if (S.fraseLei) out.frase = S.fraseLei;
   gruppi.forEach(g => g.voci.forEach(v => { const it = items[v.n]; if (it && it.q) v.q = it.q; }));
   return out;
 }
 let LISTA_EXTRA = [];
+function openFrase(){
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">💌 Frase per ' + esc(NOME_LEI()) + '</h2><button class="btn sec2 sm" data-close>Chiudi</button></div>';
+  h += '<span class="small mut">La vede in grande in cima al suo link, firmata da te. La puoi cambiare quando vuoi. Se la cancelli, torna la frase del giorno.</span>';
+  h += '<textarea id="frase-txt" maxlength="160" placeholder="Scrivi qui il tuo messaggio per lei">' + esc(S.fraseLei || '') + '</textarea>';
+  h += '<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button class="opt on" data-frasesalva>Salva</button><button class="opt" data-frasecanc>Cancella</button></div>';
+  sheet(h);
+}
+async function aggiornaFrase(){
+  if (!S.listaTok) { toast('Salvata. La vedrà quando le mandi il link (🔗 Link per ' + NOME_LEI() + ').'); return; }
+  let ok = false;
+  try {
+    const { data } = await sb.from('meno15_liste').select('dati').eq('token', S.listaTok).maybeSingle();
+    if (data && data.dati) { const dati = Object.assign({}, data.dati); if (S.fraseLei) dati.frase = S.fraseLei; else delete dati.frase; const { error } = await sb.from('meno15_liste').update({ dati, aggiornato: new Date().toISOString() }).eq('token', S.listaTok); ok = !error; }
+    else ok = (await listaCarica(keyOf(mondayOf(new Date())), true)) !== false;
+  } catch (e) {}
+  toast(ok ? 'Fatto: la vede già nel suo link 💚' : 'Salvata: la vedrà appena c\'è rete.');
+}
 function listaUrl(){ return typeof SB_URL !== 'undefined' ? SB_URL + '/functions/v1/meno15-lista' : ''; }
 async function listaCarica(mk, forza){
   if (!S.listaTok || typeof sb === 'undefined' || !sb || !sbUser) return false;
@@ -2026,8 +2044,8 @@ async function vistaLista(tok){
     (d.gruppi || []).forEach(g => g.voci.forEach(v => { tot++; if (sp[v.n]) fatti++; }));
     const ora = new Date().getHours(), saluto = ora < 5 ? 'Buonanotte' : ora < 12 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
     const FRASI = ['Un giorno alla volta: oggi conta oggi.', 'Ogni pasto del piano è un passo avanti.', 'Sei più brava di quanto pensi.', 'Piccole scelte, grandi risultati.', 'Oggi si mangia bene e si sta bene.', 'La costanza batte la perfezione.', 'Siamo una squadra, anche a tavola.'];
-    const frase = FRASI[new Date().getDate() % FRASI.length];
-    let h = '<div class="hero"><h1 style="font-size:26px">' + (d.lei ? saluto + ' ' + esc(d.lei) + ' ' + (ora < 18 && ora >= 5 ? '☀️' : '🌙') : esc(d.titolo || 'Lista della spesa')) + '</h1>' + (d.lei ? '<span style="color:#E3F1EA;font-size:15px">' + esc(frase) + '</span>' : '') + '<span class="small" style="color:#BFD8CB;margin-top:6px">' + (d.menu && d.menu.length ? 'Qui trovi il tuo menu e la spesa della settimana · ' : '') + fatti + ' su ' + tot + ' presi · si aggiorna da sola' + (d.nome ? ' · da ' + esc(d.nome) + ' 💚' : '') + '</span></div>';
+    const frase = d.frase || FRASI[new Date().getDate() % FRASI.length];
+    let h = '<div class="hero"><h1 style="font-size:26px">' + (d.lei ? saluto + ' ' + esc(d.lei) + ' ' + (ora < 18 && ora >= 5 ? '☀️' : '🌙') : esc(d.titolo || 'Lista della spesa')) + '</h1>' + (d.lei ? '<span style="color:#E3F1EA;font-size:' + (d.frase ? '17px;font-style:italic' : '15px') + '">' + (d.frase ? '“' + esc(frase) + '”' + (d.nome ? '<br><span style="font-size:14px;font-style:normal">— ' + esc(d.nome) + ' 💚</span>' : '') : esc(frase)) + '</span>' : '') + '<span class="small" style="color:#BFD8CB;margin-top:6px">' + (d.menu && d.menu.length ? 'Qui trovi il tuo menu e la spesa della settimana · ' : '') + fatti + ' su ' + tot + ' presi · si aggiorna da sola' + (d.nome ? ' · da ' + esc(d.nome) + ' 💚' : '') + '</span></div>';
     if (d.menu && d.menu.length) {
       const oggi = keyOf(new Date()), giorni = d.menu.filter(x => x.d >= oggi).slice(0, 2);
       giorni.forEach((g, gi) => {
@@ -3266,6 +3284,9 @@ document.addEventListener('click', async (e) => {
   if (d.turnicopy) { const mon = parseKey(d.turnicopy); for (let i = 0; i < 7; i++) S.turni[keyOf(addDays(mon, i))] = turnoOf(addDays(mon, i - 7)); save(); render(); openTurni(d.turnicopy); toast('Copiati i turni della settimana prima'); return; }
   if (d.turnirep) { const mon = parseKey(d.turnirep); for (let w = 1; w <= 4; w++) for (let i = 0; i < 7; i++) S.turni[keyOf(addDays(mon, w * 7 + i))] = turnoOf(addDays(mon, i)); save(); toast('Schema ripetuto per le prossime 4 settimane'); return; }
   if (d.porzundo !== undefined) { const u = S.adatta[S.adatta.length - 1]; if (u) { S.porz = u.da; u.a = u.da; u.motivo += ' (modifica annullata)'; save(); render(); toast('Porzioni come prima'); } return; }
+  if (d.frase !== undefined) { openFrase(); return; }
+  if (d.frasesalva !== undefined) { S.fraseLei = (($('#frase-txt') || {}).value || '').trim().slice(0, 160); save(); closeSheet(); aggiornaFrase(); return; }
+  if (d.frasecanc !== undefined) { S.fraseLei = ''; save(); closeSheet(); aggiornaFrase(); return; }
   if (d.sharelista) { listaCondividi(d.sharelista); return; }
   if (d.export !== undefined) { esporta(); return; }
   if (d.notifcat) { if (t.checked) delete S.notif[d.notifcat]; else S.notif[d.notifcat] = false; save(); return; }
