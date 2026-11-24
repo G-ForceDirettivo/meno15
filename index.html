@@ -2024,7 +2024,10 @@ async function vistaLista(tok){
     const d = LV.dati || {}, sp = LV.spuntati || {};
     let tot = 0, fatti = 0;
     (d.gruppi || []).forEach(g => g.voci.forEach(v => { tot++; if (sp[v.n]) fatti++; }));
-    let h = '<div class="hero"><small>' + (d.lei ? 'Ciao ' + esc(d.lei) : 'Lista condivisa' + (d.nome ? ' da ' + esc(d.nome) : '')) + '</small><h1 style="font-size:24px">' + (d.menu && d.menu.length ? 'Menu e spesa' : esc(d.titolo || 'Lista della spesa')) + '</h1><span class="small" style="color:#BFD8CB">' + fatti + ' su ' + tot + ' presi · si aggiorna da sola</span></div>';
+    const ora = new Date().getHours(), saluto = ora < 5 ? 'Buonanotte' : ora < 12 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
+    const FRASI = ['Un giorno alla volta: oggi conta oggi.', 'Ogni pasto del piano è un passo avanti.', 'Sei più brava di quanto pensi.', 'Piccole scelte, grandi risultati.', 'Oggi si mangia bene e si sta bene.', 'La costanza batte la perfezione.', 'Siamo una squadra, anche a tavola.'];
+    const frase = FRASI[new Date().getDate() % FRASI.length];
+    let h = '<div class="hero"><h1 style="font-size:26px">' + (d.lei ? saluto + ' ' + esc(d.lei) + ' ' + (ora < 18 && ora >= 5 ? '☀️' : '🌙') : esc(d.titolo || 'Lista della spesa')) + '</h1>' + (d.lei ? '<span style="color:#E3F1EA;font-size:15px">' + esc(frase) + '</span>' : '') + '<span class="small" style="color:#BFD8CB;margin-top:6px">' + (d.menu && d.menu.length ? 'Qui trovi il tuo menu e la spesa della settimana · ' : '') + fatti + ' su ' + tot + ' presi · si aggiorna da sola' + (d.nome ? ' · da ' + esc(d.nome) + ' 💚' : '') + '</span></div>';
     if (d.menu && d.menu.length) {
       const oggi = keyOf(new Date()), giorni = d.menu.filter(x => x.d >= oggi).slice(0, 2);
       giorni.forEach((g, gi) => {
