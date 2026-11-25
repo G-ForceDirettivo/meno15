@@ -1773,26 +1773,28 @@ function repCoppia(n, cat){
 }
 function spesaCoppia(mk){
   const monday = parseKey(mk), tot = {};
-  const add = (key, rep, u, v, qb) => { const t = tot[key] || (tot[key] = { rep, u: {}, qb: 0 }); if (qb) t.qb++; else t.u[u] = (t.u[u] || 0) + v; };
+  const add = (key, l, chi, rep, u, v, qb) => { const t = tot[key] || (tot[key] = { l, chi, rep, u: {}, qb: 0 }); if (qb) t.qb++; else t.u[u] = (t.u[u] || 0) + v; };
   for (let i = 0; i < 7; i++) {
     const d = addDays(monday, i); if (!coppia(d)) continue;
     const P = pianoGiorno(d);
     Object.keys(P).forEach(sl => P[sl].righe.forEach(r => {
-      if (r.pizza || !r.n && !r.pane) return;
+      if (r.pizza) return;
       if (r.pane) {
-        if (r.n) add('Pane senza glutine (per ' + NOME_LEI().toLowerCase() + ')', 'sg', r.u, r.v || 0);
-        if (r.vl) add('Pane integrale (per te)', 'pa', 'g', r.vl);
+        if (r.n) add('Pane senza glutine', 'Pane senza glutine', 'lei', 'sg', r.u, r.v || 0);
+        if (typeof r.vl === 'number') add('Ale: Pane integrale', 'Pane integrale', 'lui', 'pa', 'g', r.vl);
         return;
       }
+      if (!r.n) return;
       const nome = nomeCibo(r.n), rep = repCoppia(r.n, r.cat);
-      if (r.v == null) { add(nome, rep, null, 0, true); return; }
-      add(nome, rep, r.u, r.v + (typeof r.vl === 'number' ? r.vl : 0));
+      if (r.v == null) { add(nome, nome, 'lei', rep, null, 0, true); if (r.vl !== undefined) add('Ale: ' + nome, nome, 'lui', rep, null, 0, true); return; }
+      add(nome, nome, 'lei', rep, r.u, r.v);
+      if (typeof r.vl === 'number') add('Ale: ' + nome, nome, 'lui', rep, r.u, r.vl);
     }));
   }
   const items = {};
   Object.keys(tot).forEach(n => {
     const t = tot[n], parti = Object.keys(t.u).map(u => fmtQ(Math.round(t.u[u] * 2) / 2, u === 'n' ? 'n' : u)).map(x => /^\d/.test(x) && !/[a-z]/.test(x) ? x + ' pz' : x);
-    items[n] = { rep: t.rep, count: 1, q: parti.length ? parti.join(' + ') : 'per ' + t.qb + (t.qb === 1 ? ' pasto' : ' pasti') };
+    items[n] = { rep: t.rep, chi: t.chi, l: t.l, count: 1, q: parti.length ? parti.join(' + ') : 'per ' + t.qb + (t.qb === 1 ? ' pasto' : ' pasti') };
   });
   return { monday, items, due: false, coppia: true };
 }
@@ -1807,7 +1809,9 @@ function menuPerLei(){
       g[sl].forEach(([t, n, v, u]) => { const x = nomeCibo(n) + (v == null ? '' : ' ' + fmtQ(v, u)); const last = r[r.length - 1]; if (t && last && last.t === t) last.x.push(x); else r.push({ t, x: [x] }); });
       pasti.push({ s: sl === 'gio' ? 'Durante la giornata' : SLOTNAME[sl], r: r.map(o => o.t ? nomeCibo(o.t) + ': ' + o.x.join(', ').toLowerCase() : o.x[0]) });
     });
-    out.push({ d: keyOf(d), g: GIORNI[dow(d)] + ' ' + fmtDate(d), sett: settimanaDieta(d) + 1, pasti });
+    const P = pianoGiorno(d), lui = [];
+    SLOTS.concat(['gio']).forEach(sl => { if (!P[sl]) return; const r = []; P[sl].righe.forEach(x => { if (x.lui === '—') return; const y = x.nome + (x.lui && x.lui !== 'q.b.' && x.lui !== 'sì' ? ' ' + x.lui : ''); const last = r[r.length - 1]; if (x.t && last && last.t === x.t) last.x.push(y); else r.push({ t: x.t, x: [y] }); }); if (r.length) lui.push({ s: sl === 'gio' ? 'Durante la giornata' : SLOTNAME[sl], r: r.map(o => o.t ? nomeCibo(o.t) + ': ' + o.x.join(', ').toLowerCase() : o.x[0]) }); });
+    out.push({ d: keyOf(d), g: GIORNI[dow(d)] + ' ' + fmtDate(d), sett: settimanaDieta(d) + 1, pasti, lui });
   }
   return out;
 }
@@ -1980,7 +1984,8 @@ function openTurni(mk){
 /* ---------------- Lista della spesa condivisa ---------------- */
 function listaPayload(mk){
   const { monday, items } = buildSpesa(mk), gruppi = [];
-  Object.keys(REP2).forEach(rk => { if (rk === 'casa') return; const voci = Object.keys(items).filter(n => items[n].rep === rk).sort().map(n => ({ n, c: items[n].count })); if (voci.length) gruppi.push({ nome: REP2[rk], sg: rk === 'sg', voci }); });
+  const chis = Object.keys(items).some(n => items[n].chi) ? ['lei', 'lui'] : [null];
+  chis.forEach(chi => Object.keys(REP2).forEach(rk => { if (rk === 'casa') return; const voci = Object.keys(items).filter(n => items[n].rep === rk && (!chi || items[n].chi === chi)).sort((x, y) => (items[x].l || x).localeCompare(items[y].l || y)).map(n => ({ n, c: items[n].count, l: items[n].l })); if (voci.length) gruppi.push({ nome: rk === 'sg' ? 'Senza glutine' : REP2[rk], sg: rk === 'sg', chi, voci }); }));
   const out = { mk, titolo: 'Spesa della settimana dal ' + fmtDate(monday), gruppi, nome: S.profilo.nome || '' };
   if (DIETA) { out.menu = menuPerLei(); out.lei = NOME_LEI(); out.inizio = DIETA.inizio; }
   if (S.fraseLei) out.frase = S.fraseLei;
@@ -2054,19 +2059,30 @@ async function vistaLista(tok){
       if (dom) h += '<div style="font-size:21px;font-weight:800;margin:2px 0 4px">' + esc(dom.g) + '</div>' + dom.pasti.map(pastoHtml).join('');
       else { const ini = d.inizio ? parseKey(d.inizio) : null; h += '<div style="font-size:15px;margin-top:6px">' + (ini && keyOf(ini) > domK ? 'La dieta parte <b>' + esc(GIORNI[dow(ini)].toLowerCase() + ' ' + fmtDate(ini)) + '</b>: da ' + esc(GIORNI[dow(addDays(ini, -1))].toLowerCase()) + ' qui trovi sempre il menu del giorno dopo.' : 'Il menu di domani non è ancora pronto.') + '</div>'; }
       h += '</div>';
-      if (og) h += '<details class="nu"><summary>Menu di oggi · ' + esc(og.g) + '</summary><div>' + og.pasti.map(pastoHtml).join('') + '</div></details>';
+      if (og) h += '<details class="nu"><summary>Il tuo menu di oggi · ' + esc(og.g) + '</summary><div>' + og.pasti.map(pastoHtml).join('') + '</div></details>';
+      if (dom && dom.lui && dom.lui.length) h += '<details class="nu" style="border-color:var(--green)"><summary>👨 Menu di domani di ' + esc(d.nome || 'Ale') + ' (a parte)</summary><div><span class="small mut">Le sue dosi, se cucini anche per lui.</span>' + dom.lui.map(pastoHtml).join('') + '</div></details>';
     }
-    const ICO = { 'Frutta e verdura': '🥦', 'Carne e pesce': '🐟', 'Latte, uova e formaggi': '🥚', 'Dispensa': '🥫', 'Pane e forno': '🥖', 'Surgelati': '🧊' };
-    const pct = tot ? Math.round(fatti / tot * 100) : 0;
-    h += '<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:700;color:var(--green-d)">🛒 LISTA DELLA SPESA</div><div style="font-size:19px;font-weight:800">' + esc((d.titolo || 'Spesa della settimana').replace('Spesa della settimana dal', 'Settimana dal')) + '</div>';
-    h += '<div class="between" style="font-size:15px"><span><b>' + fatti + '</b> su ' + tot + ' presi</span>' + (tot && fatti === tot ? '<b style="color:var(--green-d)">✓ Tutto preso!</b>' : '<span class="small mut">ne mancano ' + (tot - fatti) + '</span>') + '</div><div class="bar" style="background:#ECEFED;height:8px"><i style="width:' + Math.max(2, pct) + '%;background:var(--green)"></i></div>';
-    h += '<span class="small mut">Le quantità sono già per tutti e due e per tutta la settimana. Tocca una voce quando la metti nel carrello: la vede subito anche ' + esc(d.nome || 'lui') + '.</span></div>';
-    (d.gruppi || []).forEach(g => {
+    const ICO = { 'Frutta e verdura': '🥦', 'Carne e pesce': '🐟', 'Latte, uova e formaggi': '🥚', 'Dispensa': '🥫', 'Pane e forno': '🥖', 'Surgelati': '🧊', 'Senza glutine': '🌾' };
+    const GR = d.gruppi || [], diviso = GR.some(g => g.chi), nomeLui = d.nome || 'Ale';
+    const conta = gs => { let t = 0, f = 0; gs.forEach(g => g.voci.forEach(v => { t++; if (sp[v.n]) f++; })); return [f, t]; };
+    const barra = (f, t) => '<div class="between" style="font-size:15px"><span><b>' + f + '</b> su ' + t + ' presi</span>' + (t && f === t ? '<b style="color:var(--green-d)">✓ Tutto preso!</b>' : '<span class="small mut">ne mancano ' + (t - f) + '</span>') + '</div><div class="bar" style="background:#ECEFED;height:8px"><i style="width:' + Math.max(2, t ? Math.round(f / t * 100) : 0) + '%;background:var(--green)"></i></div>';
+    const gruppo = (g, col) => {
       const voci = g.voci.slice().sort((a, b) => (!!sp[a.n]) - (!!sp[b.n])), presi = voci.filter(v => sp[v.n]).length;
-      h += '<div class="card" style="padding:12px 16px' + (g.sg ? ';border-color:#E0A43A' : '') + '"><div class="between" style="margin-bottom:2px"><b style="font-size:16px">' + (g.sg ? '🌾 Senza glutine (per te)' : (ICO[g.nome] || '•') + ' ' + esc(g.nome)) + '</b><span class="small ' + (presi === voci.length ? '" style="color:var(--green-d);font-weight:700">✓ fatto' : 'mut">' + presi + '/' + voci.length) + '</span></div>';
-      voci.forEach(v => { const on = !!sp[v.n]; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="padding:9px 0;align-items:center' + (on ? ';opacity:.55' : '') + '"><input type="checkbox" data-lt="' + esc(v.n) + '"' + (on ? ' checked' : '') + ' style="width:26px;height:26px;accent-color:var(--green)"><span style="flex:1;min-width:0;font-size:16px">' + esc(v.n) + '</span>' + (v.q ? '<b style="font-size:15px;white-space:nowrap;text-decoration:none' + (on ? ';color:var(--muted)' : '') + '">' + esc(v.q) + '</b>' : '') + '</label>'; });
-      h += '</div>';
-    });
+      let x = '<div class="card" style="padding:12px 16px;border-left:5px solid ' + col + (g.sg ? ';border-color:#E0A43A' : '') + '"><div class="between" style="margin-bottom:2px"><b style="font-size:16px">' + (g.sg && !g.chi ? '🌾 Senza glutine (per te)' : (ICO[g.nome] || '•') + ' ' + esc(g.nome)) + '</b><span class="small ' + (presi === voci.length ? '" style="color:var(--green-d);font-weight:700">✓ fatto' : 'mut">' + presi + '/' + voci.length) + '</span></div>';
+      voci.forEach(v => { const on = !!sp[v.n]; x += '<label class="shop-item' + (on ? ' done' : '') + '" style="padding:9px 0;align-items:center' + (on ? ';opacity:.55' : '') + '"><input type="checkbox" data-lt="' + esc(v.n) + '"' + (on ? ' checked' : '') + ' style="width:26px;height:26px;accent-color:var(--green)"><span style="flex:1;min-width:0;font-size:16px">' + esc(v.l || v.n) + '</span>' + (v.q ? '<b style="font-size:15px;white-space:nowrap;text-decoration:none' + (on ? ';color:var(--muted)' : '') + '">' + esc(v.q) + '</b>' : '') + '</label>'; });
+      return x + '</div>';
+    };
+    const titoloSett = esc((d.titolo || 'Spesa della settimana').replace('Spesa della settimana dal', 'Settimana dal'));
+    if (diviso) {
+      const lei = GR.filter(g => g.chi === 'lei'), lui = GR.filter(g => g.chi === 'lui'), [fl, tl] = conta(lei), [fu, tu] = conta(lui);
+      h += '<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;border:2px solid #6B4FA0"><div style="font-size:13px;font-weight:700;color:#6B4FA0">🛒 LA TUA SPESA · ' + esc((d.lei || '').toUpperCase()) + '</div><div style="font-size:19px;font-weight:800">' + titoloSett + '</div>' + barra(fl, tl) + '<span class="small mut">Sono le <b>tue dosi</b> per tutta la settimana. Tocca una voce quando la metti nel carrello: la vede subito anche ' + esc(nomeLui) + '.</span></div>';
+      lei.forEach(g => { h += gruppo(g, '#6B4FA0'); });
+      h += '<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;border:2px solid var(--green);margin-top:10px"><div style="font-size:13px;font-weight:700;color:var(--green-d)">🛒 A PARTE · PER ' + esc(nomeLui.toUpperCase()) + '</div><div style="font-size:19px;font-weight:800">Le dosi di ' + esc(nomeLui) + '</div>' + barra(fu, tu) + '<span class="small mut">Da comprare <b>in più</b> rispetto alla tua lista, sempre per tutta la settimana. Il sabato sera lui mangia la pizza: per quella cena non serve niente.</span></div>';
+      lui.forEach(g => { h += gruppo(g, 'var(--green)'); });
+    } else {
+      h += '<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:700;color:var(--green-d)">🛒 LISTA DELLA SPESA</div><div style="font-size:19px;font-weight:800">' + titoloSett + '</div>' + barra(fatti, tot) + '<span class="small mut">Le quantità sono già per tutti e due e per tutta la settimana. Tocca una voce quando la metti nel carrello: la vede subito anche ' + esc(nomeLui) + '.</span></div>';
+      GR.forEach(g => { h += gruppo(g, 'var(--line)'); });
+    }
     if (!(d.gruppi || []).length) h += '<div class="card small mut">La lista apparirà qui appena c\'è la settimana della dieta.</div>';
     const scritto = (document.getElementById('lt-add') || {}).value || '';
     h += '<div class="card stack" style="border-color:#6B4FA0"><b style="font-size:16px">✍️ Hai comprato altro?</b><span class="small mut">Scrivilo qui così ' + esc(d.nome || 'lui') + ' lo sa.</span><div class="row" style="gap:8px"><input id="lt-add" type="text" value="' + esc(scritto) + '" placeholder="Es. 2 confezioni di yogurt" style="flex:1"><button class="btn pri sm" data-ltadd>Aggiungi</button></div>';
@@ -2673,15 +2689,16 @@ const REP2 = Object.assign({}, REP, { sg:'Senza glutine (per lei)', casa:'Già i
 function openSpesa(mk){
   const { monday, items, due } = buildSpesa(mk);
   const done = S.spesa[mk] || {};
-  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Lista della spesa</h2><button class="btn sec2 sm" data-close>Chiudi</button></div><span class="small mut">Settimana dal ' + fmtDate(monday) + (buildSpesa(mk).coppia ? '. Quantità già sommate per te e ' + esc(NOME_LEI()) + ', dal suo piano.' : '. Il numero indica le porzioni' + (due ? ' (le cene sono contate per due)' : '') + '.') + '</span>';
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Lista della spesa</h2><button class="btn sec2 sm" data-close>Chiudi</button></div><span class="small mut">Settimana dal ' + fmtDate(monday) + (buildSpesa(mk).coppia ? '. Prima le cose di ' + esc(NOME_LEI()) + ' con le sue dosi, poi le tue a parte.' : '. Il numero indica le porzioni' + (due ? ' (le cene sono contate per due)' : '') + '.') + '</span>';
   if (typeof LISTA_EXTRA !== 'undefined' && LISTA_EXTRA.length) { h += '<div class="card" style="border-color:#6B4FA0"><div class="lab" style="margin-bottom:4px">Comprato in più da ' + esc(NOME_LEI()) + '</div>'; LISTA_EXTRA.forEach(x => { h += '<div class="small" style="padding:4px 0;border-top:1px solid var(--line)">' + esc(x.t) + '</div>'; }); h += '</div>'; }
-  Object.keys(REP2).forEach(rk => {
-    const names = Object.keys(items).filter(n => items[n].rep === rk).sort();
+  const sezioni = Object.keys(items).some(n => items[n].chi) ? [['lei', 'Per ' + NOME_LEI() + ' · le sue dosi'], ['lui', 'Per te · le tue dosi']] : [[null, '']];
+  sezioni.forEach(([chi, tit]) => { if (tit) h += '<div class="sec" style="margin-top:6px"><h2>' + esc(tit) + '</h2></div>'; Object.keys(REP2).forEach(rk => {
+    const names = Object.keys(items).filter(n => items[n].rep === rk && (!chi || items[n].chi === chi)).sort((x, y) => (items[x].l || x).localeCompare(items[y].l || y));
     if (!names.length) return;
     h += '<div class="card"' + (rk === 'sg' ? ' style="border-color:#E0A43A"' : '') + '><div class="lab" style="margin-bottom:4px">' + REP2[rk] + '</div>';
-    names.forEach(n => { const on = !!done[n], c = items[n].count, g = rk !== 'casa' ? guidaFor(n) : null; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="align-items:flex-start;padding:8px 0"><input type="checkbox" data-shop="' + esc(n) + '" data-mk="' + mk + '"' + (on ? ' checked' : '') + ' style="margin-top:2px"><span style="flex:1;min-width:0">' + esc(n) + (g ? '<span class="small" style="display:block;color:var(--green-d);text-decoration:none">Scegli: ' + esc(g[0]) + '</span>' : '') + '</span><span class="small mut" style="white-space:nowrap">' + (items[n].q ? esc(items[n].q) : c ? c + ' porz.' : 'controlla') + '</span></label>'; });
+    names.forEach(n => { const on = !!done[n], c = items[n].count, g = rk !== 'casa' ? guidaFor(items[n].l || n) : null; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="align-items:flex-start;padding:8px 0"><input type="checkbox" data-shop="' + esc(n) + '" data-mk="' + mk + '"' + (on ? ' checked' : '') + ' style="margin-top:2px"><span style="flex:1;min-width:0">' + esc(items[n].l || n) + (g ? '<span class="small" style="display:block;color:var(--green-d);text-decoration:none">Scegli: ' + esc(g[0]) + '</span>' : '') + '</span><span class="small mut" style="white-space:nowrap">' + (items[n].q ? esc(items[n].q) : c ? c + ' porz.' : 'controlla') + '</span></label>'; });
     h += '</div>';
-  });
+  }); });
   h += '<button class="btn sec2" data-guida>Come scegliere i prodotti (cosa evitare)</button>';
   if (typeof sb !== 'undefined' && sb && sbUser) h += '<button class="btn pri" data-sharelista="' + mk + '">Condividi con lei (lista sempre aggiornata)</button><span class="small mut" style="margin-top:-6px">Le mandi un link: vede la stessa lista e quello che spunta lei lo vedi anche tu.</span>';
   h += '<button class="btn sec2" data-copyspesa="' + mk + '">Copia la lista (da incollare su WhatsApp)</button>';
@@ -3216,7 +3233,8 @@ document.addEventListener('click', async (e) => {
   if (d.copyspesa) {
     const { monday, items } = buildSpesa(d.copyspesa), done = S.spesa[d.copyspesa] || {};
     let txt = 'Spesa settimana dal ' + fmtDate(monday) + '\n';
-    Object.keys(REP2).filter(rk => rk !== 'casa').forEach(rk => { const ns = Object.keys(items).filter(n => items[n].rep === rk && !done[n]).sort(); if (ns.length) txt += '\n' + REP2[rk] + ':\n' + ns.map(n => { const g = guidaFor(n); return '- ' + n + (items[n].count > 1 ? ' (' + items[n].count + ')' : '') + (g ? ' → ' + g[0] : ''); }).join('\n') + '\n'; });
+    const chiT = Object.keys(items).some(n => items[n].chi) ? [['lei', 'PER ' + NOME_LEI().toUpperCase()], ['lui', 'PER ALE']] : [[null, '']];
+    chiT.forEach(([chi, tt]) => { if (tt) txt += '\n' + tt + '\n'; Object.keys(REP2).filter(rk => rk !== 'casa').forEach(rk => { const ns = Object.keys(items).filter(n => items[n].rep === rk && !done[n] && (!chi || items[n].chi === chi)).sort(); if (ns.length) txt += '\n' + REP2[rk] + ':\n' + ns.map(n => { const g = guidaFor(items[n].l || n); return '- ' + (items[n].l || n) + (items[n].q ? ' ' + items[n].q : '') + (items[n].count > 1 ? ' (' + items[n].count + ')' : '') + (g ? ' → ' + g[0] : ''); }).join('\n') + '\n'; }); });
     try { await navigator.clipboard.writeText(txt); toast('Lista copiata'); } catch (err) { toast('Copia non riuscita su questo dispositivo'); }
     return;
   }

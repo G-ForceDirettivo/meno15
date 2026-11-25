@@ -1,4 +1,4 @@
-const CACHE = 'meno15-v18';
+const CACHE = 'meno15-v19';
 const FILES = ['./', './index.html', './manifest.json', './icon-180.png', './icon-192.png', './icon-512.png'];
 const CDN = 'https://cdn.jsdelivr.net/';
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' }))))); self.skipWaiting(); });
