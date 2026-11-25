@@ -1771,31 +1771,35 @@ function repCoppia(n, cat){
   if (/surgel/i.test(n)) return 'su';
   return REP_COPPIA[cat] || 'di';
 }
+function qCoppia(t){
+  const pz = x => /^\d/.test(x) && !/[a-z]/.test(x) ? x + ' pz' : x;
+  const parte = p => { const k = Object.keys(p.u); return k.length ? k.map(u => pz(fmtQ(Math.round(p.u[u] * 2) / 2, u))).join(' + ') : 'q.b. ' + p.qb + (p.qb === 1 ? ' pasto' : ' pasti'); };
+  const us = Array.from(new Set(Object.keys(t.lei.u).concat(Object.keys(t.lui.u))));
+  const totale = us.length ? us.map(u => { const v = (t.lei.u[u] || 0) + (t.lui.u[u] || 0); return pz(fmtQ(u === 'n' ? Math.ceil(v) : Math.round(v * 2) / 2, u)); }).join(' + ') : 'q.b. per ' + (t.lei.qb + t.lui.qb) + ' porzioni';
+  const chi = t.lei.on && t.lui.on ? 'both' : t.lei.on ? 'lei' : 'lui';
+  return { chi, q: totale, lei: t.lei.on ? parte(t.lei) : null, lui: t.lui.on ? parte(t.lui) : null };
+}
 function spesaCoppia(mk){
   const monday = parseKey(mk), tot = {};
-  const add = (key, l, chi, rep, u, v, qb) => { const t = tot[key] || (tot[key] = { l, chi, rep, u: {}, qb: 0 }); if (qb) t.qb++; else t.u[u] = (t.u[u] || 0) + v; };
+  const add = (key, rep, chi, u, v) => { const t = tot[key] || (tot[key] = { rep, lei: { u: {}, qb: 0, on: false }, lui: { u: {}, qb: 0, on: false } }), q = t[chi]; q.on = true; if (v == null) q.qb++; else q.u[u] = (q.u[u] || 0) + v; };
   for (let i = 0; i < 7; i++) {
     const d = addDays(monday, i); if (!coppia(d)) continue;
     const P = pianoGiorno(d);
     Object.keys(P).forEach(sl => P[sl].righe.forEach(r => {
       if (r.pizza) return;
       if (r.pane) {
-        if (r.n) add('Pane senza glutine', 'Pane senza glutine', 'lei', 'sg', r.u, r.v || 0);
-        if (typeof r.vl === 'number') add('Ale: Pane integrale', 'Pane integrale', 'lui', 'pa', 'g', r.vl);
+        if (r.n) add('Pane senza glutine', 'sg', 'lei', r.u, r.v || 0);
+        if (typeof r.vl === 'number') add('Pane integrale', 'pa', 'lui', 'g', r.vl);
         return;
       }
       if (!r.n) return;
       const nome = nomeCibo(r.n), rep = repCoppia(r.n, r.cat);
-      if (r.v == null) { add(nome, nome, 'lei', rep, null, 0, true); if (r.vl !== undefined) add('Ale: ' + nome, nome, 'lui', rep, null, 0, true); return; }
-      add(nome, nome, 'lei', rep, r.u, r.v);
-      if (typeof r.vl === 'number') add('Ale: ' + nome, nome, 'lui', rep, r.u, r.vl);
+      add(nome, rep, 'lei', r.u, r.v);
+      if (r.vl !== undefined) add(nome, rep, 'lui', r.u, r.vl);
     }));
   }
   const items = {};
-  Object.keys(tot).forEach(n => {
-    const t = tot[n], parti = Object.keys(t.u).map(u => fmtQ(Math.round(t.u[u] * 2) / 2, u === 'n' ? 'n' : u)).map(x => /^\d/.test(x) && !/[a-z]/.test(x) ? x + ' pz' : x);
-    items[n] = { rep: t.rep, chi: t.chi, l: t.l, count: 1, q: parti.length ? parti.join(' + ') : 'per ' + t.qb + (t.qb === 1 ? ' pasto' : ' pasti') };
-  });
+  Object.keys(tot).forEach(n => { items[n] = Object.assign({ rep: tot[n].rep, l: n, count: 1 }, qCoppia(tot[n])); });
   return { monday, items, due: false, coppia: true };
 }
 function menuPerLei(){
@@ -1984,8 +1988,8 @@ function openTurni(mk){
 /* ---------------- Lista della spesa condivisa ---------------- */
 function listaPayload(mk){
   const { monday, items } = buildSpesa(mk), gruppi = [];
-  const chis = Object.keys(items).some(n => items[n].chi) ? ['lei', 'lui'] : [null];
-  chis.forEach(chi => Object.keys(REP2).forEach(rk => { if (rk === 'casa') return; const voci = Object.keys(items).filter(n => items[n].rep === rk && (!chi || items[n].chi === chi)).sort((x, y) => (items[x].l || x).localeCompare(items[y].l || y)).map(n => ({ n, c: items[n].count, l: items[n].l })); if (voci.length) gruppi.push({ nome: rk === 'sg' ? 'Senza glutine' : REP2[rk], sg: rk === 'sg', chi, voci }); }));
+  const chis = Object.keys(items).some(n => items[n].chi) ? ['both', 'lei', 'lui'] : [null];
+  chis.forEach(chi => Object.keys(REP2).forEach(rk => { if (rk === 'casa') return; const voci = Object.keys(items).filter(n => items[n].rep === rk && (!chi || items[n].chi === chi)).sort((x, y) => (items[x].l || x).localeCompare(items[y].l || y)).map(n => ({ n, c: items[n].count, lei: items[n].lei, lui: items[n].lui })); if (voci.length) gruppi.push({ nome: rk === 'sg' ? 'Senza glutine' : REP2[rk], sg: rk === 'sg', chi, voci }); }));
   const out = { mk, titolo: 'Spesa della settimana dal ' + fmtDate(monday), gruppi, nome: S.profilo.nome || '' };
   if (DIETA) { out.menu = menuPerLei(); out.lei = NOME_LEI(); out.inizio = DIETA.inizio; }
   if (S.fraseLei) out.frase = S.fraseLei;
@@ -2063,26 +2067,30 @@ async function vistaLista(tok){
       if (dom && dom.lui && dom.lui.length) h += '<details class="nu" style="border-color:var(--green)"><summary>👨 Menu di domani di ' + esc(d.nome || 'Ale') + ' (a parte)</summary><div><span class="small mut">Le sue dosi, se cucini anche per lui.</span>' + dom.lui.map(pastoHtml).join('') + '</div></details>';
     }
     const ICO = { 'Frutta e verdura': '🥦', 'Carne e pesce': '🐟', 'Latte, uova e formaggi': '🥚', 'Dispensa': '🥫', 'Pane e forno': '🥖', 'Surgelati': '🧊', 'Senza glutine': '🌾' };
-    const GR = d.gruppi || [], diviso = GR.some(g => g.chi), nomeLui = d.nome || 'Ale';
-    const conta = gs => { let t = 0, f = 0; gs.forEach(g => g.voci.forEach(v => { t++; if (sp[v.n]) f++; })); return [f, t]; };
+    const GR = d.gruppi || [], diviso = GR.some(g => g.chi), nomeLui = d.nome || 'Ale', nomeLei = d.lei || 'Lei';
     const barra = (f, t) => '<div class="between" style="font-size:15px"><span><b>' + f + '</b> su ' + t + ' presi</span>' + (t && f === t ? '<b style="color:var(--green-d)">✓ Tutto preso!</b>' : '<span class="small mut">ne mancano ' + (t - f) + '</span>') + '</div><div class="bar" style="background:#ECEFED;height:8px"><i style="width:' + Math.max(2, t ? Math.round(f / t * 100) : 0) + '%;background:var(--green)"></i></div>';
-    const gruppo = (g, col) => {
+    const gruppo = (g, titolo, col) => {
       const voci = g.voci.slice().sort((a, b) => (!!sp[a.n]) - (!!sp[b.n])), presi = voci.filter(v => sp[v.n]).length;
-      let x = '<div class="card" style="padding:12px 16px;border-left:5px solid ' + col + (g.sg ? ';border-color:#E0A43A' : '') + '"><div class="between" style="margin-bottom:2px"><b style="font-size:16px">' + (g.sg && !g.chi ? '🌾 Senza glutine (per te)' : (ICO[g.nome] || '•') + ' ' + esc(g.nome)) + '</b><span class="small ' + (presi === voci.length ? '" style="color:var(--green-d);font-weight:700">✓ fatto' : 'mut">' + presi + '/' + voci.length) + '</span></div>';
-      voci.forEach(v => { const on = !!sp[v.n]; x += '<label class="shop-item' + (on ? ' done' : '') + '" style="padding:9px 0;align-items:center' + (on ? ';opacity:.55' : '') + '"><input type="checkbox" data-lt="' + esc(v.n) + '"' + (on ? ' checked' : '') + ' style="width:26px;height:26px;accent-color:var(--green)"><span style="flex:1;min-width:0;font-size:16px">' + esc(v.l || v.n) + '</span>' + (v.q ? '<b style="font-size:15px;white-space:nowrap;text-decoration:none' + (on ? ';color:var(--muted)' : '') + '">' + esc(v.q) + '</b>' : '') + '</label>'; });
+      let x = '<div class="card" style="padding:12px 16px;border-left:5px solid ' + col + '"><div class="between" style="margin-bottom:2px"><b style="font-size:16px">' + titolo + '</b><span class="small ' + (presi === voci.length ? '" style="color:var(--green-d);font-weight:700">✓ fatto' : 'mut">' + presi + '/' + voci.length) + '</span></div>';
+      voci.forEach(v => {
+        const on = !!sp[v.n], due = v.lei && v.lui;
+        x += '<label class="shop-item' + (on ? ' done' : '') + '" style="padding:9px 0;align-items:center' + (on ? ';opacity:.55' : '') + '"><input type="checkbox" data-lt="' + esc(v.n) + '"' + (on ? ' checked' : '') + ' style="width:26px;height:26px;accent-color:var(--green)"><span style="flex:1;min-width:0;font-size:16px">' + esc(v.l || v.n);
+        const qb = due && /^q\.b\./.test(v.lei) && v.lei === v.lui;
+        if (qb) x += '<span style="display:block;font-size:13px;text-decoration:none;margin-top:2px;color:var(--muted)">' + esc(v.lei.replace('q.b. ', 'Per ')) + ', per tutti e due</span>';
+        else if (due) x += '<span style="display:block;font-size:13px;text-decoration:none;margin-top:2px"><span style="color:#6B4FA0">Tu ' + esc(v.lei) + '</span> · <span style="color:var(--green-d)">' + esc(nomeLui) + ' ' + esc(v.lui) + '</span></span>';
+        x += '</span>' + (v.q ? '<span style="text-align:right;white-space:nowrap;text-decoration:none">' + (due && !qb ? '<span style="display:block;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.04em">TOTALE</span>' : '') + '<b style="font-size:15px' + (on ? ';color:var(--muted)' : '') + '">' + esc(qb ? 'q.b.' : v.q) + '</b></span>' : '') + '</label>';
+      });
       return x + '</div>';
     };
     const titoloSett = esc((d.titolo || 'Spesa della settimana').replace('Spesa della settimana dal', 'Settimana dal'));
+    h += '<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:700;color:var(--green-d)">🛒 LISTA DELLA SPESA</div><div style="font-size:19px;font-weight:800">' + titoloSett + '</div>' + barra(fatti, tot);
+    h += '<span class="small mut">' + (diviso ? 'A destra in grassetto <b>il totale da comprare</b> per tutta la settimana. Sotto il nome, le dosi a testa: <span style="color:#6B4FA0">tu</span> e <span style="color:var(--green-d)">' + esc(nomeLui) + '</span>.' : 'Le quantità sono già per tutti e due e per tutta la settimana.') + ' Tocca una voce quando la metti nel carrello: la vede subito anche ' + esc(nomeLui) + '.</span></div>';
     if (diviso) {
-      const lei = GR.filter(g => g.chi === 'lei'), lui = GR.filter(g => g.chi === 'lui'), [fl, tl] = conta(lei), [fu, tu] = conta(lui);
-      h += '<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;border:2px solid #6B4FA0"><div style="font-size:13px;font-weight:700;color:#6B4FA0">🛒 LA TUA SPESA · ' + esc((d.lei || '').toUpperCase()) + '</div><div style="font-size:19px;font-weight:800">' + titoloSett + '</div>' + barra(fl, tl) + '<span class="small mut">Sono le <b>tue dosi</b> per tutta la settimana. Tocca una voce quando la metti nel carrello: la vede subito anche ' + esc(nomeLui) + '.</span></div>';
-      lei.forEach(g => { h += gruppo(g, '#6B4FA0'); });
-      h += '<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;border:2px solid var(--green);margin-top:10px"><div style="font-size:13px;font-weight:700;color:var(--green-d)">🛒 A PARTE · PER ' + esc(nomeLui.toUpperCase()) + '</div><div style="font-size:19px;font-weight:800">Le dosi di ' + esc(nomeLui) + '</div>' + barra(fu, tu) + '<span class="small mut">Da comprare <b>in più</b> rispetto alla tua lista, sempre per tutta la settimana. Il sabato sera lui mangia la pizza: per quella cena non serve niente.</span></div>';
-      lui.forEach(g => { h += gruppo(g, 'var(--green)'); });
-    } else {
-      h += '<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:700;color:var(--green-d)">🛒 LISTA DELLA SPESA</div><div style="font-size:19px;font-weight:800">' + titoloSett + '</div>' + barra(fatti, tot) + '<span class="small mut">Le quantità sono già per tutti e due e per tutta la settimana. Tocca una voce quando la metti nel carrello: la vede subito anche ' + esc(nomeLui) + '.</span></div>';
-      GR.forEach(g => { h += gruppo(g, 'var(--line)'); });
-    }
+      const sez = (chi, tit, sotto, col) => { const gs = GR.filter(g => g.chi === chi); if (!gs.length) return; h += '<div class="sec" style="margin-top:6px"><h2>' + tit + '</h2>' + (sotto ? '<span class="small mut">' + sotto + '</span>' : '') + '</div>'; gs.forEach(g => { h += gruppo(g, (ICO[g.nome] || '•') + ' ' + esc(g.nome), col); }); };
+      sez('both', '👫 In comune', 'Per tutti e due', 'var(--line)');
+      sez('lei', '👩 Solo per te', 'Le cose senza glutine', '#E0A43A');
+      sez('lui', '👨 Solo per ' + esc(nomeLui), 'Il sabato sera mangia la pizza: per quella cena non serve niente', 'var(--green)');
+    } else GR.forEach(g => { h += gruppo(g, g.sg ? '🌾 Senza glutine (per te)' : (ICO[g.nome] || '•') + ' ' + esc(g.nome), 'var(--line)'); });
     if (!(d.gruppi || []).length) h += '<div class="card small mut">La lista apparirà qui appena c\'è la settimana della dieta.</div>';
     const scritto = (document.getElementById('lt-add') || {}).value || '';
     h += '<div class="card stack" style="border-color:#6B4FA0"><b style="font-size:16px">✍️ Hai comprato altro?</b><span class="small mut">Scrivilo qui così ' + esc(d.nome || 'lui') + ' lo sa.</span><div class="row" style="gap:8px"><input id="lt-add" type="text" value="' + esc(scritto) + '" placeholder="Es. 2 confezioni di yogurt" style="flex:1"><button class="btn pri sm" data-ltadd>Aggiungi</button></div>';
@@ -2689,14 +2697,14 @@ const REP2 = Object.assign({}, REP, { sg:'Senza glutine (per lei)', casa:'Già i
 function openSpesa(mk){
   const { monday, items, due } = buildSpesa(mk);
   const done = S.spesa[mk] || {};
-  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Lista della spesa</h2><button class="btn sec2 sm" data-close>Chiudi</button></div><span class="small mut">Settimana dal ' + fmtDate(monday) + (buildSpesa(mk).coppia ? '. Prima le cose di ' + esc(NOME_LEI()) + ' con le sue dosi, poi le tue a parte.' : '. Il numero indica le porzioni' + (due ? ' (le cene sono contate per due)' : '') + '.') + '</span>';
+  let h = '<div class="grab"></div><div class="between"><h2 style="font-size:22px">Lista della spesa</h2><button class="btn sec2 sm" data-close>Chiudi</button></div><span class="small mut">Settimana dal ' + fmtDate(monday) + (buildSpesa(mk).coppia ? '. A destra il totale da comprare, sotto le dosi a testa.' : '. Il numero indica le porzioni' + (due ? ' (le cene sono contate per due)' : '') + '.') + '</span>';
   if (typeof LISTA_EXTRA !== 'undefined' && LISTA_EXTRA.length) { h += '<div class="card" style="border-color:#6B4FA0"><div class="lab" style="margin-bottom:4px">Comprato in più da ' + esc(NOME_LEI()) + '</div>'; LISTA_EXTRA.forEach(x => { h += '<div class="small" style="padding:4px 0;border-top:1px solid var(--line)">' + esc(x.t) + '</div>'; }); h += '</div>'; }
-  const sezioni = Object.keys(items).some(n => items[n].chi) ? [['lei', 'Per ' + NOME_LEI() + ' · le sue dosi'], ['lui', 'Per te · le tue dosi']] : [[null, '']];
+  const sezioni = Object.keys(items).some(n => items[n].chi) ? [['both', 'In comune'], ['lei', 'Solo per ' + NOME_LEI()], ['lui', 'Solo per te']] : [[null, '']];
   sezioni.forEach(([chi, tit]) => { if (tit) h += '<div class="sec" style="margin-top:6px"><h2>' + esc(tit) + '</h2></div>'; Object.keys(REP2).forEach(rk => {
     const names = Object.keys(items).filter(n => items[n].rep === rk && (!chi || items[n].chi === chi)).sort((x, y) => (items[x].l || x).localeCompare(items[y].l || y));
     if (!names.length) return;
     h += '<div class="card"' + (rk === 'sg' ? ' style="border-color:#E0A43A"' : '') + '><div class="lab" style="margin-bottom:4px">' + REP2[rk] + '</div>';
-    names.forEach(n => { const on = !!done[n], c = items[n].count, g = rk !== 'casa' ? guidaFor(items[n].l || n) : null; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="align-items:flex-start;padding:8px 0"><input type="checkbox" data-shop="' + esc(n) + '" data-mk="' + mk + '"' + (on ? ' checked' : '') + ' style="margin-top:2px"><span style="flex:1;min-width:0">' + esc(items[n].l || n) + (g ? '<span class="small" style="display:block;color:var(--green-d);text-decoration:none">Scegli: ' + esc(g[0]) + '</span>' : '') + '</span><span class="small mut" style="white-space:nowrap">' + (items[n].q ? esc(items[n].q) : c ? c + ' porz.' : 'controlla') + '</span></label>'; });
+    names.forEach(n => { const on = !!done[n], c = items[n].count, g = rk !== 'casa' ? guidaFor(items[n].l || n) : null; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="align-items:flex-start;padding:8px 0"><input type="checkbox" data-shop="' + esc(n) + '" data-mk="' + mk + '"' + (on ? ' checked' : '') + ' style="margin-top:2px"><span style="flex:1;min-width:0">' + esc(items[n].l || n) + (items[n].chi === 'both' ? (/^q\.b\./.test(items[n].lei) && items[n].lei === items[n].lui ? '<span class="small mut" style="display:block;text-decoration:none">' + esc(items[n].lei.replace('q.b. ', 'Per ')) + ', per tutti e due</span>' : '<span class="small" style="display:block;text-decoration:none"><span style="color:#6B4FA0">' + esc(NOME_LEI()) + ' ' + esc(items[n].lei) + '</span> · <span style="color:var(--green-d)">tu ' + esc(items[n].lui) + '</span></span>') : '') + (g ? '<span class="small" style="display:block;color:var(--green-d);text-decoration:none">Scegli: ' + esc(g[0]) + '</span>' : '') + '</span><span class="' + (items[n].chi ? '' : 'small mut') + '" style="white-space:nowrap' + (items[n].chi ? ';font-weight:700;font-size:14px' : '') + '">' + (items[n].q ? esc(/^q\.b\./.test(items[n].q) ? 'q.b.' : items[n].q) : c ? c + ' porz.' : 'controlla') + '</span></label>'; });
     h += '</div>';
   }); });
   h += '<button class="btn sec2" data-guida>Come scegliere i prodotti (cosa evitare)</button>';
@@ -3233,8 +3241,8 @@ document.addEventListener('click', async (e) => {
   if (d.copyspesa) {
     const { monday, items } = buildSpesa(d.copyspesa), done = S.spesa[d.copyspesa] || {};
     let txt = 'Spesa settimana dal ' + fmtDate(monday) + '\n';
-    const chiT = Object.keys(items).some(n => items[n].chi) ? [['lei', 'PER ' + NOME_LEI().toUpperCase()], ['lui', 'PER ALE']] : [[null, '']];
-    chiT.forEach(([chi, tt]) => { if (tt) txt += '\n' + tt + '\n'; Object.keys(REP2).filter(rk => rk !== 'casa').forEach(rk => { const ns = Object.keys(items).filter(n => items[n].rep === rk && !done[n] && (!chi || items[n].chi === chi)).sort(); if (ns.length) txt += '\n' + REP2[rk] + ':\n' + ns.map(n => { const g = guidaFor(items[n].l || n); return '- ' + (items[n].l || n) + (items[n].q ? ' ' + items[n].q : '') + (items[n].count > 1 ? ' (' + items[n].count + ')' : '') + (g ? ' → ' + g[0] : ''); }).join('\n') + '\n'; }); });
+    const chiT = Object.keys(items).some(n => items[n].chi) ? [['both', 'IN COMUNE'], ['lei', 'SOLO PER ' + NOME_LEI().toUpperCase()], ['lui', 'SOLO PER ALE']] : [[null, '']];
+    chiT.forEach(([chi, tt]) => { if (tt) txt += '\n' + tt + '\n'; Object.keys(REP2).filter(rk => rk !== 'casa').forEach(rk => { const ns = Object.keys(items).filter(n => items[n].rep === rk && !done[n] && (!chi || items[n].chi === chi)).sort(); if (ns.length) txt += '\n' + REP2[rk] + ':\n' + ns.map(n => { const g = guidaFor(items[n].l || n); return '- ' + (items[n].l || n) + (items[n].q ? ': ' + items[n].q : '') + (items[n].chi === 'both' ? ' (' + NOME_LEI() + ' ' + items[n].lei + ', Ale ' + items[n].lui + ')' : '') + (items[n].count > 1 ? ' (' + items[n].count + ')' : '') + (g ? ' → ' + g[0] : ''); }).join('\n') + '\n'; }); });
     try { await navigator.clipboard.writeText(txt); toast('Lista copiata'); } catch (err) { toast('Copia non riuscita su questo dispositivo'); }
     return;
   }
