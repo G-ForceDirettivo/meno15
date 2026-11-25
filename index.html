@@ -1791,7 +1791,7 @@ function spesaCoppia(mk){
   }
   const items = {};
   Object.keys(tot).forEach(n => {
-    const t = tot[n], parti = Object.keys(t.u).map(u => fmtQ(Math.round(t.u[u] * 2) / 2, u === 'n' ? 'n' : u)).map(x => /^\d/.test(x) && !/[a-z]/.test(x) ? 'n° ' + x : x);
+    const t = tot[n], parti = Object.keys(t.u).map(u => fmtQ(Math.round(t.u[u] * 2) / 2, u === 'n' ? 'n' : u)).map(x => /^\d/.test(x) && !/[a-z]/.test(x) ? x + ' pz' : x);
     items[n] = { rep: t.rep, count: 1, q: parti.length ? parti.join(' + ') : 'per ' + t.qb + (t.qb === 1 ? ' pasto' : ' pasti') };
   });
   return { monday, items, due: false, coppia: true };
@@ -1982,7 +1982,7 @@ function listaPayload(mk){
   const { monday, items } = buildSpesa(mk), gruppi = [];
   Object.keys(REP2).forEach(rk => { if (rk === 'casa') return; const voci = Object.keys(items).filter(n => items[n].rep === rk).sort().map(n => ({ n, c: items[n].count })); if (voci.length) gruppi.push({ nome: REP2[rk], sg: rk === 'sg', voci }); });
   const out = { mk, titolo: 'Spesa della settimana dal ' + fmtDate(monday), gruppi, nome: S.profilo.nome || '' };
-  if (DIETA) { out.menu = menuPerLei(); out.lei = NOME_LEI(); }
+  if (DIETA) { out.menu = menuPerLei(); out.lei = NOME_LEI(); out.inizio = DIETA.inizio; }
   if (S.fraseLei) out.frase = S.fraseLei;
   gruppi.forEach(g => g.voci.forEach(v => { const it = items[v.n]; if (it && it.q) v.q = it.q; }));
   return out;
@@ -2045,23 +2045,33 @@ async function vistaLista(tok){
     const ora = new Date().getHours(), saluto = ora < 5 ? 'Buonanotte' : ora < 12 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
     const FRASI = ['Un giorno alla volta: oggi conta oggi.', 'Ogni pasto del piano è un passo avanti.', 'Sei più brava di quanto pensi.', 'Piccole scelte, grandi risultati.', 'Oggi si mangia bene e si sta bene.', 'La costanza batte la perfezione.', 'Siamo una squadra, anche a tavola.'];
     const frase = d.frase || FRASI[new Date().getDate() % FRASI.length];
-    let h = '<div class="hero"><h1 style="font-size:26px">' + (d.lei ? saluto + ' ' + esc(d.lei) + ' ' + (ora < 18 && ora >= 5 ? '☀️' : '🌙') : esc(d.titolo || 'Lista della spesa')) + '</h1>' + (d.lei ? '<span style="color:#E3F1EA;font-size:' + (d.frase ? '17px;font-style:italic' : '15px') + '">' + (d.frase ? '“' + esc(frase) + '”' + (d.nome ? '<br><span style="font-size:14px;font-style:normal">— ' + esc(d.nome) + ' 💚</span>' : '') : esc(frase)) + '</span>' : '') + '<span class="small" style="color:#BFD8CB;margin-top:6px">' + (d.menu && d.menu.length ? 'Qui trovi il tuo menu e la spesa della settimana · ' : '') + fatti + ' su ' + tot + ' presi · si aggiorna da sola' + (d.nome ? ' · da ' + esc(d.nome) + ' 💚' : '') + '</span></div>';
-    if (d.menu && d.menu.length) {
-      const oggi = keyOf(new Date()), giorni = d.menu.filter(x => x.d >= oggi).slice(0, 2);
-      giorni.forEach((g, gi) => {
-        h += '<details class="nu"' + (gi === 0 ? ' open' : '') + '><summary>' + (gi === 0 ? 'Oggi · ' : 'Domani · ') + esc(g.g) + ' <span class="small mut" style="font-weight:400">settimana ' + g.sett + '</span></summary><div>';
-        g.pasti.forEach(p => { h += '<div><b style="font-size:14px">' + esc(p.s) + '</b>' + p.r.map(x => '<div class="small" style="padding:2px 0">' + esc(x) + '</div>').join('') + '</div>'; });
-        h += '</div></details>';
-      });
+    const domK = keyOf(addDays(new Date(), 1)), oggiK = keyOf(new Date());
+    let h = '<div class="hero" style="gap:8px"><h1 style="font-size:26px">' + (d.lei ? saluto + ' ' + esc(d.lei) + ' ' + (ora < 18 && ora >= 5 ? '☀️' : '🌙') : 'Lista della spesa') + '</h1>' + (d.lei ? '<span style="color:#E3F1EA;font-size:' + (d.frase ? '17px;font-style:italic' : '15px') + '">' + (d.frase ? '“' + esc(frase) + '”' + (d.nome ? '<br><span style="font-size:14px;font-style:normal">— ' + esc(d.nome) + ' 💚</span>' : '') : esc(frase)) + '</span>' : '') + '<span class="small" style="color:#BFD8CB">Si aggiorna da sola' + (d.nome ? ' · da ' + esc(d.nome) + ' 💚' : '') + '</span></div>';
+    const pastoHtml = p => '<div style="padding:10px 0;border-top:1px solid var(--line)"><div style="font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--green-d);margin-bottom:4px">' + esc(p.s) + '</div>' + p.r.map(x => { const i = x.indexOf(': '); return i > 0 ? '<div style="padding:2px 0;font-size:15px"><b>' + esc(x.slice(0, i)) + '</b><div style="font-size:14px;color:var(--ink2)">' + esc(x.slice(i + 2)) + '</div></div>' : '<div style="padding:2px 0;font-size:15px">' + esc(x) + '</div>'; }).join('') + '</div>';
+    if (d.lei) {
+      const menu = d.menu || [], dom = menu.find(x => x.d === domK), og = menu.find(x => x.d === oggiK);
+      h += '<div class="card" style="border:2px solid var(--green);padding:14px 16px"><div style="font-size:13px;font-weight:700;color:var(--green-d)">🍽️ IL TUO MENU DI DOMANI</div>';
+      if (dom) h += '<div style="font-size:21px;font-weight:800;margin:2px 0 4px">' + esc(dom.g) + '</div>' + dom.pasti.map(pastoHtml).join('');
+      else { const ini = d.inizio ? parseKey(d.inizio) : null; h += '<div style="font-size:15px;margin-top:6px">' + (ini && keyOf(ini) > domK ? 'La dieta parte <b>' + esc(GIORNI[dow(ini)].toLowerCase() + ' ' + fmtDate(ini)) + '</b>: da ' + esc(GIORNI[dow(addDays(ini, -1))].toLowerCase()) + ' qui trovi sempre il menu del giorno dopo.' : 'Il menu di domani non è ancora pronto.') + '</div>'; }
+      h += '</div>';
+      if (og) h += '<details class="nu"><summary>Menu di oggi · ' + esc(og.g) + '</summary><div>' + og.pasti.map(pastoHtml).join('') + '</div></details>';
     }
-    h += '<div class="card stack" style="border-color:#6B4FA0"><span class="lab">Ho comprato…</span><div class="row" style="gap:8px"><input id="lt-add" type="text" placeholder="Es. 2 confezioni di yogurt" style="flex:1"><button class="btn pri sm" data-ltadd>Aggiungi</button></div>';
-    (LV.extra || []).forEach((x, i) => { h += '<div class="between small" style="border-top:1px solid var(--line);padding-top:6px"><span>' + esc(x.t) + '</span><button class="linkbtn" data-ltdel="' + i + '" aria-label="Togli">✕</button></div>'; });
-    h += '</div><div class="sec" style="margin-top:4px"><h2>Lista della spesa</h2><span class="small mut">' + esc(d.titolo || '') + '</span></div>';
+    const ICO = { 'Frutta e verdura': '🥦', 'Carne e pesce': '🐟', 'Latte, uova e formaggi': '🥚', 'Dispensa': '🥫', 'Pane e forno': '🥖', 'Surgelati': '🧊' };
+    const pct = tot ? Math.round(fatti / tot * 100) : 0;
+    h += '<div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:700;color:var(--green-d)">🛒 LISTA DELLA SPESA</div><div style="font-size:19px;font-weight:800">' + esc((d.titolo || 'Spesa della settimana').replace('Spesa della settimana dal', 'Settimana dal')) + '</div>';
+    h += '<div class="between" style="font-size:15px"><span><b>' + fatti + '</b> su ' + tot + ' presi</span>' + (tot && fatti === tot ? '<b style="color:var(--green-d)">✓ Tutto preso!</b>' : '<span class="small mut">ne mancano ' + (tot - fatti) + '</span>') + '</div><div class="bar" style="background:#ECEFED;height:8px"><i style="width:' + Math.max(2, pct) + '%;background:var(--green)"></i></div>';
+    h += '<span class="small mut">Le quantità sono già per tutti e due e per tutta la settimana. Tocca una voce quando la metti nel carrello: la vede subito anche ' + esc(d.nome || 'lui') + '.</span></div>';
     (d.gruppi || []).forEach(g => {
-      h += '<div class="card"' + (g.sg ? ' style="border-color:#E0A43A"' : '') + '><div class="lab" style="margin-bottom:4px">' + esc(g.sg ? 'Senza glutine (per te)' : g.nome) + '</div>';
-      g.voci.forEach(v => { const on = !!sp[v.n]; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="padding:8px 0"><input type="checkbox" data-lt="' + esc(v.n) + '"' + (on ? ' checked' : '') + '><span style="flex:1">' + esc(v.n) + '</span>' + (v.q ? '<span class="small mut">' + esc(v.q) + '</span>' : v.c > 1 ? '<span class="small mut">×' + v.c + '</span>' : '') + '</label>'; });
+      const voci = g.voci.slice().sort((a, b) => (!!sp[a.n]) - (!!sp[b.n])), presi = voci.filter(v => sp[v.n]).length;
+      h += '<div class="card" style="padding:12px 16px' + (g.sg ? ';border-color:#E0A43A' : '') + '"><div class="between" style="margin-bottom:2px"><b style="font-size:16px">' + (g.sg ? '🌾 Senza glutine (per te)' : (ICO[g.nome] || '•') + ' ' + esc(g.nome)) + '</b><span class="small ' + (presi === voci.length ? '" style="color:var(--green-d);font-weight:700">✓ fatto' : 'mut">' + presi + '/' + voci.length) + '</span></div>';
+      voci.forEach(v => { const on = !!sp[v.n]; h += '<label class="shop-item' + (on ? ' done' : '') + '" style="padding:9px 0;align-items:center' + (on ? ';opacity:.55' : '') + '"><input type="checkbox" data-lt="' + esc(v.n) + '"' + (on ? ' checked' : '') + ' style="width:26px;height:26px;accent-color:var(--green)"><span style="flex:1;min-width:0;font-size:16px">' + esc(v.n) + '</span>' + (v.q ? '<b style="font-size:15px;white-space:nowrap;text-decoration:none' + (on ? ';color:var(--muted)' : '') + '">' + esc(v.q) + '</b>' : '') + '</label>'; });
       h += '</div>';
     });
+    if (!(d.gruppi || []).length) h += '<div class="card small mut">La lista apparirà qui appena c\'è la settimana della dieta.</div>';
+    const scritto = (document.getElementById('lt-add') || {}).value || '';
+    h += '<div class="card stack" style="border-color:#6B4FA0"><b style="font-size:16px">✍️ Hai comprato altro?</b><span class="small mut">Scrivilo qui così ' + esc(d.nome || 'lui') + ' lo sa.</span><div class="row" style="gap:8px"><input id="lt-add" type="text" value="' + esc(scritto) + '" placeholder="Es. 2 confezioni di yogurt" style="flex:1"><button class="btn pri sm" data-ltadd>Aggiungi</button></div>';
+    (LV.extra || []).forEach((x, i) => { h += '<div class="between" style="border-top:1px solid var(--line);padding-top:8px;font-size:15px"><span>' + esc(x.t) + '</span><button class="linkbtn" data-ltdel="' + i + '" aria-label="Togli">✕</button></div>'; });
+    h += '</div>';
     app.innerHTML = h;
   };
   const carica = async () => { try { const r = await fetch(listaUrl() + '?t=' + encodeURIComponent(tok), { cache: 'no-store' }); const j = await r.json(); LV = r.ok ? j : { errore: 'Questa lista non esiste più: chiedi un link nuovo.' }; } catch (e) { if (!LV) LV = { errore: 'Sei offline: riprova quando c\'è rete.' }; } disegna(); };
@@ -3202,7 +3212,7 @@ document.addEventListener('click', async (e) => {
   if (d.shop) { const mk = d.mk; S.spesa[mk] = S.spesa[mk] || {}; if (t.checked) S.spesa[mk][d.shop] = true; else delete S.spesa[mk][d.shop]; t.closest('.shop-item').classList.toggle('done', t.checked); save(); listaSpunta(d.shop, t.checked); return; }
   if (d.ltadd !== undefined) { const inp = $('#lt-add'), tx = (inp && inp.value || '').trim().slice(0, 100); if (!tx) return; fetch(listaUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: window.__listaTok, aggiungi: tx }) }).then(r => r.json()).then(j => { if (j && j.extra) { LV.extra = j.extra; if (window.__listaDisegna) window.__listaDisegna(); } }).catch(() => toast('Sei offline: riprova')); inp.value = ''; return; }
   if (d.ltdel !== undefined) { fetch(listaUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: window.__listaTok, togli: Number(d.ltdel) }) }).then(r => r.json()).then(j => { if (j && j.extra) { LV.extra = j.extra; if (window.__listaDisegna) window.__listaDisegna(); } }).catch(() => {}); return; }
-  if (d.lt !== undefined) { const on = t.checked; t.closest('.shop-item').classList.toggle('done', on); if (window.__listaSet) window.__listaSet(d.lt, on); fetch(listaUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: window.__listaTok, voce: d.lt, on }) }).catch(() => toast('Sei offline: la spunta non è stata salvata')); return; }
+  if (d.lt !== undefined) { const on = t.checked; t.closest('.shop-item').classList.toggle('done', on); if (window.__listaSet) { window.__listaSet(d.lt, on); if (window.__listaDisegna) setTimeout(window.__listaDisegna, 250); } fetch(listaUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: window.__listaTok, voce: d.lt, on }) }).catch(() => toast('Sei offline: la spunta non è stata salvata')); return; }
   if (d.copyspesa) {
     const { monday, items } = buildSpesa(d.copyspesa), done = S.spesa[d.copyspesa] || {};
     let txt = 'Spesa settimana dal ' + fmtDate(monday) + '\n';
